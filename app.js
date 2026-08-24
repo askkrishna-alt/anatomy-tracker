@@ -117,6 +117,11 @@ async function predictWebcam() {
             });
             drawingUtils.drawLandmarks(landmarks, { color: "#ff3333", radius: 3 });
 
+            const currentPhase = PHASES[assessment.phaseIndex];
+            if (assessment.state === "capturing" && currentPhase && currentPhase.key === "plumbline") {
+                drawPlumbLineOverlay(landmarks);
+            }
+
             updateLiveMetrics(landmarks);
 
             if (assessment.state === "capturing") {
@@ -186,16 +191,16 @@ function snapshotLandmarks(landmarks) {
 
 const PHASES = [
     {
-        key: "front",
-        label: "Front Stance",
-        instruction: "Stand facing the camera, feet hip-width apart, arms relaxed at your sides.",
+        key: "plumbline",
+        label: "Plumb Line",
+        instruction: "Turn 90° so your side faces the camera. Stand naturally — a vertical reference line will appear.",
         countdownSec: 5,
-        captureMs: 2500
+        captureMs: 8000
     },
     {
-        key: "profile",
-        label: "Side Stance",
-        instruction: "Turn 90° so your side faces the camera. Stand naturally.",
+        key: "front",
+        label: "Front Stance",
+        instruction: "Face the camera directly, feet hip-width apart, arms relaxed at your sides.",
         countdownSec: 5,
         captureMs: 2500
     },
@@ -265,7 +270,9 @@ function beginPhase(index) {
 
 function beginCapture(phase) {
     assessment.state = "capturing";
-    phaseCountdownUI.innerText = phase.key === "squat" ? "Go — squat 3x" : "Hold still";
+    phaseCountdownUI.innerText = phase.key === "squat" ? "Go — squat 3x"
+        : phase.key === "plumbline" ? "Hold — reading plumb line"
+        : "Hold still";
     nextPhaseBtn.classList.remove("hidden");
     clearTimeout(assessment.captureTimer);
     assessment.captureTimer = setTimeout(endPhaseCapture, phase.captureMs);
@@ -282,8 +289,8 @@ function endPhaseCapture() {
    PER-PHASE ANALYSIS
    ============================================================ */
 function analyzePhase(key, buffer) {
+    if (key === "plumbline") return analyzePlumbLine(buffer);
     if (key === "front") return analyzeFrontHold(buffer);
-    if (key === "profile") return analyzeProfileHold(buffer);
     if (key === "squat") return analyzeSquat(buffer);
     return {};
 }
@@ -295,6 +302,7 @@ function avg(arr) {
 function analyzeFrontHold(buffer) {
     const shoulderDeltas = [], hipDeltas = [], headTilts = [], headShifts = [];
     const clavicleAngles = [], hipShifts = [], kneeAlignRatios = [], poplitealDeltas = [];
+    const leftKneeDevs = [], rightKneeDevs = [];
 
     for (const frame of buffer) {
         const s = frame.lm;
@@ -324,7 +332,8 @@ function analyzeFrontHold(buffer) {
         if (lHip && rHip && lAnkle && rAnkle) {
             const hipMidX = (lHip.x + rHip.x) / 2;
             const ankleMidX = (lAnkle.x + rAnkle.x) / 2;
-            hipShifts.push(Math.abs(hipMidX - ankleMidX));
+            // Signed (not abs) so we can report which side the pelvis has drifted toward.
+            hipShifts.push(hipMidX - ankleMidX);
         }
         if (lKnee && rKnee && lAnkle && rAnkle) {
             const kneeSep = dist(lKnee, rKnee);
@@ -334,16 +343,43 @@ function analyzeFrontHold(buffer) {
         if (lKnee && rKnee) {
             poplitealDeltas.push(Math.abs(lKnee.y - rKnee.y));
         }
+        // Per-leg frontal-plane knee deviation: expected knee x if the
+        // hip-ankle line were straight, compared to actual knee x, signed
+        // so that positive = drifted toward the body midline (valgus)
+        // and negative = drifted away from it (varus) — computed
+        // independently for each leg using that frame's own midline.
+        if (lHip && rHip && lKnee && lAnkle && lAnkle.y !== lHip.y) {
+            const midlineX = (lHip.x + rHip.x) / 2;
+            const t = (lKnee.y - lHip.y) / (lAnkle.y - lHip.y);
+            const expectedX = lHip.x + (lAnkle.x - lHip.x) * t;
+            const inwardSign = Math.sign(midlineX - lHip.x) || -1;
+            leftKneeDevs.push((lKnee.x - expectedX) * inwardSign);
+        }
+        if (lHip && rHip && rKnee && rAnkle && rAnkle.y !== rHip.y) {
+            const midlineX = (lHip.x + rHip.x) / 2;
+            const t = (rKnee.y - rHip.y) / (rAnkle.y - rHip.y);
+            const expectedX = rHip.x + (rAnkle.x - rHip.x) * t;
+            const inwardSign = Math.sign(midlineX - rHip.x) || 1;
+            rightKneeDevs.push((rKnee.x - expectedX) * inwardSign);
+        }
     }
 
+    const hipShiftSigned = avg(hipShifts);
     return {
         shoulderSymIdx: avg(shoulderDeltas) !== null ? Math.round(avg(shoulderDeltas) * 100) : null,
         clavicleAngle: avg(clavicleAngles) !== null ? Math.round(avg(clavicleAngles)) : null,
         hipSymIdx: avg(hipDeltas) !== null ? Math.round(avg(hipDeltas) * 100) : null,
         headTiltIdx: avg(headTilts) !== null ? Math.round(avg(headTilts) * 100) : null,
         headShiftIdx: avg(headShifts) !== null ? Math.round(avg(headShifts) * 100) : null,
-        hipShiftIdx: avg(hipShifts) !== null ? Math.round(avg(hipShifts) * 100) : null,
+        hipShiftIdx: hipShiftSigned !== null ? Math.round(Math.abs(hipShiftSigned) * 100) : null,
+        // Clinical convention: direction is given from the patient's own perspective,
+        // assuming the patient is facing the camera during this phase.
+        hipShiftDirection: hipShiftSigned === null ? null
+            : Math.abs(hipShiftSigned * 100) < 1.5 ? "Neutral"
+            : hipShiftSigned > 0 ? "Left" : "Right",
         kneeAlignRatio: avg(kneeAlignRatios) !== null ? Math.round(avg(kneeAlignRatios) * 100) / 100 : null,
+        leftKneeDevIdx: avg(leftKneeDevs) !== null ? Math.round(avg(leftKneeDevs) * 100) : null,
+        rightKneeDevIdx: avg(rightKneeDevs) !== null ? Math.round(avg(rightKneeDevs) * 100) : null,
         poplitealDeltaIdx: avg(poplitealDeltas) !== null ? Math.round(avg(poplitealDeltas) * 100) : null,
         trackingConfidence: avgVisibility(buffer),
         frameCount: buffer.length
@@ -364,8 +400,9 @@ function avgVisibility(buffer) {
     return scores.length ? Math.round(avg(scores) * 100) : null;
 }
 
-function analyzeProfileHold(buffer) {
-    const headAngles = [], trunkAngles = [], plumbDeviations = [], kneeLineOffsets = [];
+function analyzePlumbLine(buffer) {
+    const headAngles = [], trunkAngles = [], kneeLineOffsets = [];
+    const earDevs = [], shoulderDevs = [], hipDevs = [], kneeDevs = [];
 
     for (const frame of buffer) {
         const s = frame.lm;
@@ -385,12 +422,15 @@ function analyzeProfileHold(buffer) {
             const dy = shoulder.y - hip.y;
             trunkAngles.push(Math.round(Math.abs((Math.atan2(dx, -dy) * 180) / Math.PI)));
         }
-        // Plumb Line Deviation: how far ear/shoulder/hip stray horizontally
-        // from the ankle (ground reference), the classic postural plumb-line check.
-        if (ear && shoulder && hip && ankle) {
+        // Plumb Line Deviation, broken out per landmark (not blended), signed
+        // by the body's own anterior direction so we can report anterior/posterior.
+        if (ear && shoulder && hip && ankle && nose) {
             const ref = ankle.x;
-            const dev = (Math.abs(ear.x - ref) + Math.abs(shoulder.x - ref) + Math.abs(hip.x - ref)) / 3;
-            plumbDeviations.push(dev);
+            const anteriorSign = Math.sign(nose.x - ear.x) || 1;
+            earDevs.push((ear.x - ref) * anteriorSign);
+            shoulderDevs.push((shoulder.x - ref) * anteriorSign);
+            hipDevs.push((hip.x - ref) * anteriorSign);
+            if (knee) kneeDevs.push((knee.x - ref) * anteriorSign);
         }
         // Knee Hyperextension Screen: expected knee x if hip-ankle were a
         // straight line, compared to actual knee x, signed by the body's
@@ -407,11 +447,32 @@ function analyzeProfileHold(buffer) {
     return {
         forwardHeadAngle: avg(headAngles) !== null ? Math.round(avg(headAngles)) : null,
         trunkLeanAngle: avg(trunkAngles) !== null ? Math.round(avg(trunkAngles)) : null,
-        plumbLineDeviationIdx: avg(plumbDeviations) !== null ? Math.round(avg(plumbDeviations) * 100) : null,
+        earPlumbDevIdx: avg(earDevs) !== null ? Math.round(avg(earDevs) * 100) : null,
+        shoulderPlumbDevIdx: avg(shoulderDevs) !== null ? Math.round(avg(shoulderDevs) * 100) : null,
+        hipPlumbDevIdx: avg(hipDevs) !== null ? Math.round(avg(hipDevs) * 100) : null,
+        kneePlumbDevIdx: avg(kneeDevs) !== null ? Math.round(avg(kneeDevs) * 100) : null,
         kneeLineOffsetIdx: avg(kneeLineOffsets) !== null ? Math.round(avg(kneeLineOffsets) * 100) : null,
         trackingConfidence: avgVisibility(buffer),
         frameCount: buffer.length
     };
+}
+
+// Draws a live vertical reference line (dropped from the ankle midpoint,
+// the "grounded" reference in a traditional postural plumb-line check)
+// so the patient/clinician can see real-time alignment on screen.
+function drawPlumbLineOverlay(landmarks) {
+    const lAnkle = landmarks[27], rAnkle = landmarks[28];
+    if (!lAnkle || !rAnkle) return;
+    const refX = ((lAnkle.x + rAnkle.x) / 2) * canvasElement.width;
+    canvasCtx.save();
+    canvasCtx.strokeStyle = "rgba(255, 221, 0, 0.9)";
+    canvasCtx.setLineDash([8, 6]);
+    canvasCtx.lineWidth = 2;
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(refX, 0);
+    canvasCtx.lineTo(refX, canvasElement.height);
+    canvasCtx.stroke();
+    canvasCtx.restore();
 }
 
 // Simple centered moving-average smoother — reduces per-frame landmark jitter
@@ -681,7 +742,7 @@ function flagClass(level) {
 function buildReportRows() {
     const rows = [];
     const front = assessment.results.front || {};
-    const profile = assessment.results.profile || {};
+    const plumb = assessment.results.plumbline || {};
     const squat = assessment.results.squat || {};
     const push = (section, row) => rows.push({ section, ...row });
 
@@ -737,17 +798,42 @@ function buildReportRows() {
     if (front.hipShiftIdx != null) {
         push("Static Posture — Front", {
             label: "Hip Shift",
-            value: `${front.hipShiftIdx} idx`,
-            level: front.hipShiftIdx > 5 ? "flag" : front.hipShiftIdx > 2 ? "moderate" : "good",
-            note: "Lateral translation of the pelvis midpoint relative to the midline of the feet."
+            value: `${front.hipShiftIdx} idx (${front.hipShiftDirection})`,
+            level: front.hipShiftDirection === "Neutral" ? "good" : front.hipShiftIdx > 5 ? "flag" : "moderate",
+            note: front.hipShiftDirection === "Neutral"
+                ? "Pelvis midpoint sits close to the midline of the feet — no meaningful lateral shift detected."
+                : `Pelvis midpoint is shifted toward the patient's own ${front.hipShiftDirection.toLowerCase()} side relative to the midline of the feet. Direction is given from the patient's perspective, assuming they were facing the camera directly.`
         });
     }
     if (front.kneeAlignRatio != null) {
+        const ratioNote = front.kneeAlignRatio >= 0.9 && front.kneeAlignRatio <= 1.15
+            ? "1.0 is neutral (knees and ankles equally spaced); this value is consistent with a normal standing alignment range."
+            : front.kneeAlignRatio < 0.9
+            ? "Below the ~0.9–1.15 normal range — suggests a bilateral valgus (knock-knee) tendency. See the per-leg rows below to see which side is driving it."
+            : "Above the ~0.9–1.15 normal range — suggests a bilateral varus (bow-leg) tendency. See the per-leg rows below to see which side is driving it.";
         push("Static Posture — Front", {
-            label: "Knee Alignment (Standing)",
+            label: "Knee Alignment (Bilateral Ratio)",
             value: `${front.kneeAlignRatio}`,
-            level: front.kneeAlignRatio < 0.85 || front.kneeAlignRatio > 1.15 ? "moderate" : "good",
-            note: "Inter-knee vs. inter-ankle distance ratio while standing. ~1.0 is neutral; well below suggests static varus/valgus tendency."
+            level: front.kneeAlignRatio < 0.85 || front.kneeAlignRatio > 1.2 ? "flag" : front.kneeAlignRatio < 0.9 || front.kneeAlignRatio > 1.15 ? "moderate" : "good",
+            note: `Inter-knee vs. inter-ankle distance ratio while standing. ${ratioNote}`
+        });
+    }
+    if (front.leftKneeDevIdx != null) {
+        const label = front.leftKneeDevIdx > 3 ? "Valgus tendency" : front.leftKneeDevIdx < -3 ? "Varus tendency" : "Within normal range";
+        push("Static Posture — Front", {
+            label: "Knee Alignment — Left",
+            value: `${front.leftKneeDevIdx} idx — ${label}`,
+            level: Math.abs(front.leftKneeDevIdx) > 6 ? "flag" : Math.abs(front.leftKneeDevIdx) > 3 ? "moderate" : "good",
+            note: "Left knee position relative to a straight hip-ankle line. Positive = drifted toward the midline (valgus); negative = drifted away from it (varus)."
+        });
+    }
+    if (front.rightKneeDevIdx != null) {
+        const label = front.rightKneeDevIdx > 3 ? "Valgus tendency" : front.rightKneeDevIdx < -3 ? "Varus tendency" : "Within normal range";
+        push("Static Posture — Front", {
+            label: "Knee Alignment — Right",
+            value: `${front.rightKneeDevIdx} idx — ${label}`,
+            level: Math.abs(front.rightKneeDevIdx) > 6 ? "flag" : Math.abs(front.rightKneeDevIdx) > 3 ? "moderate" : "good",
+            note: "Right knee position relative to a straight hip-ankle line. Positive = drifted toward the midline (valgus); negative = drifted away from it (varus)."
         });
     }
     if (front.poplitealDeltaIdx != null) {
@@ -759,44 +845,50 @@ function buildReportRows() {
         });
     }
 
-    /* ---------- STATIC POSTURE — PROFILE ---------- */
-    if (profile.trackingConfidence != null) {
-        push("Static Posture — Profile", {
+    /* ---------- PLUMB LINE / STATIC POSTURE — PROFILE ---------- */
+    if (plumb.trackingConfidence != null) {
+        push("Plumb Line — Profile View", {
             label: "Tracking Confidence",
-            value: `${profile.trackingConfidence}%`,
-            level: profile.trackingConfidence < 60 ? "flag" : profile.trackingConfidence < 80 ? "moderate" : "good",
+            value: `${plumb.trackingConfidence}%`,
+            level: plumb.trackingConfidence < 60 ? "flag" : plumb.trackingConfidence < 80 ? "moderate" : "good",
             note: "Average MediaPipe landmark visibility score for the side-view phase."
         });
     }
-    if (profile.forwardHeadAngle != null) {
-        push("Static Posture — Profile", {
+    if (plumb.forwardHeadAngle != null) {
+        push("Plumb Line — Profile View", {
             label: "Forward Head Posture Angle",
-            value: `${profile.forwardHeadAngle}°`,
-            level: profile.forwardHeadAngle > 30 ? "flag" : profile.forwardHeadAngle > 20 ? "moderate" : "good",
+            value: `${plumb.forwardHeadAngle}°`,
+            level: plumb.forwardHeadAngle > 30 ? "flag" : plumb.forwardHeadAngle > 20 ? "moderate" : "good",
             note: "Ear-to-shoulder angle from the side (craniovertebral angle proxy). Smaller angles indicate more forward head carriage (\"text neck\")."
         });
     }
-    if (profile.trunkLeanAngle != null) {
-        push("Static Posture — Profile", {
+    if (plumb.trunkLeanAngle != null) {
+        push("Plumb Line — Profile View", {
             label: "Trunk Lean (Standing)",
-            value: `${profile.trunkLeanAngle}°`,
-            level: profile.trunkLeanAngle > 15 ? "flag" : profile.trunkLeanAngle > 8 ? "moderate" : "good",
+            value: `${plumb.trunkLeanAngle}°`,
+            level: plumb.trunkLeanAngle > 15 ? "flag" : plumb.trunkLeanAngle > 8 ? "moderate" : "good",
             note: "Shoulder-to-hip line angle from vertical while standing relaxed, viewed from the side."
         });
     }
-    if (profile.plumbLineDeviationIdx != null) {
-        push("Static Posture — Profile", {
-            label: "Plumb Line Deviation",
-            value: `${profile.plumbLineDeviationIdx} idx`,
-            level: profile.plumbLineDeviationIdx > 6 ? "flag" : profile.plumbLineDeviationIdx > 3 ? "moderate" : "good",
-            note: "Average horizontal deviation of ear/shoulder/hip from the ankle (ground reference) — the classic postural plumb-line check, averaged across those landmarks."
+    const plumbRow = (label, idx, key) => {
+        if (idx == null) return;
+        const dir = idx === 0 ? "on the line" : idx > 0 ? "anterior to the line" : "posterior to the line";
+        push("Plumb Line — Profile View", {
+            label,
+            value: `${Math.abs(idx)} idx (${dir})`,
+            level: Math.abs(idx) > 6 ? "flag" : Math.abs(idx) > 3 ? "moderate" : "good",
+            note: `Horizontal deviation of the ${key} from the vertical reference line dropped through the ankle, live-visualized during the plumb-line hold. Positive/anterior = in front of the line; negative/posterior = behind it.`
         });
-    }
-    if (profile.kneeLineOffsetIdx != null) {
-        push("Static Posture — Profile", {
+    };
+    plumbRow("Ear Plumb Deviation", plumb.earPlumbDevIdx, "ear");
+    plumbRow("Shoulder Plumb Deviation", plumb.shoulderPlumbDevIdx, "shoulder");
+    plumbRow("Hip Plumb Deviation", plumb.hipPlumbDevIdx, "hip");
+    plumbRow("Knee Plumb Deviation", plumb.kneePlumbDevIdx, "knee");
+    if (plumb.kneeLineOffsetIdx != null) {
+        push("Plumb Line — Profile View", {
             label: "Knee Alignment (Sagittal) — Hyperextension Screen",
-            value: `${profile.kneeLineOffsetIdx} idx`,
-            level: profile.kneeLineOffsetIdx < -4 ? "flag" : profile.kneeLineOffsetIdx < -2 ? "moderate" : "good",
+            value: `${plumb.kneeLineOffsetIdx} idx`,
+            level: plumb.kneeLineOffsetIdx < -4 ? "flag" : plumb.kneeLineOffsetIdx < -2 ? "moderate" : "good",
             note: "Knee position relative to the straight hip-ankle line, signed by facing direction. Negative values mean the knee sits posterior to that line — a screening flag for possible genu recurvatum, worth visual confirmation."
         });
     }
