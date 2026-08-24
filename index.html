@@ -6,11 +6,21 @@
     <title>Anatomy Tracker MVP</title>
     <style>
         body { margin: 0; background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        #container { position: relative; width: 90vw; max-width: 480px; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); background: #000; }
+        #app-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 90vw; max-width: 480px; }
+
+        #container { position: relative; width: 100%; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); background: #000; }
         video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 
-        #metrics-panel { position: absolute; bottom: 16px; left: 16px; right: 16px; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); padding: 12px; border-radius: 8px; border: 1px solid #333; font-size: 14px; z-index: 5; }
-        .metric { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        /* Instruction banner and metrics now live OUTSIDE the video frame
+           (above/below it) so nothing ever covers the subject or skeleton. */
+        #phase-banner { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); padding: 10px 14px; border-radius: 8px; border: 1px solid #333; text-align: center; }
+        #phase-progress { letter-spacing: 6px; color: #00ffcc; margin-bottom: 6px; font-size: 12px; }
+        #phase-instruction { font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
+        #phase-countdown { font-size: 22px; font-weight: bold; color: #00ffcc; }
+        #next-phase-btn { margin-top: 8px; padding: 6px 16px; border-radius: 16px; border: 1px solid #555; background: transparent; color: #aaa; font-size: 12px; cursor: pointer; }
+
+        #metrics-panel { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); padding: 10px 12px; border-radius: 8px; border: 1px solid #333; font-size: 13px; }
+        .metric { display: flex; justify-content: space-between; margin-bottom: 3px; }
         .value { font-weight: bold; color: #00ffcc; }
         .hidden { display: none !important; }
 
@@ -23,15 +33,11 @@
         .primary-btn { margin-top: 20px; padding: 12px 28px; border-radius: 24px; border: none; background: #00ffcc; color: #111; font-weight: bold; font-size: 15px; cursor: pointer; }
         .primary-btn:active { background: #00d9b0; }
 
-        #phase-banner { position: absolute; top: 12px; left: 12px; right: 64px; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); padding: 12px 14px; border-radius: 8px; border: 1px solid #333; z-index: 15; text-align: center; }
-        #phase-progress { letter-spacing: 6px; color: #00ffcc; margin-bottom: 6px; font-size: 12px; }
-        #phase-instruction { font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
-        #phase-countdown { font-size: 22px; font-weight: bold; color: #00ffcc; }
-        #next-phase-btn { margin-top: 8px; padding: 6px 16px; border-radius: 16px; border: 1px solid #555; background: transparent; color: #aaa; font-size: 12px; cursor: pointer; }
-
         #report-screen { overflow-y: auto; align-items: stretch; justify-content: flex-start; padding: 20px; }
         #report-screen h2 { text-align: center; }
         #report-list { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+        .report-section-header { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #00ffcc; margin: 14px 0 2px 0; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .report-section-header:first-child { margin-top: 0; }
         .report-row { background: rgba(255,255,255,0.05); border-left: 4px solid #00ffcc; border-radius: 6px; padding: 10px 12px; text-align: left; }
         .report-row.flag-moderate { border-left-color: #ffcc00; }
         .report-row.flag-alert { border-left-color: #ff3333; }
@@ -42,11 +48,35 @@
 </head>
 <body>
 
-    <div id="container">
-        <video id="webcam" autoplay playsinline muted></video>
-        <canvas id="output_canvas"></canvas>
+    <div id="app-wrapper">
 
-        <button id="switch-camera" title="Switch camera">&#8635;</button>
+        <div id="phase-banner" class="hidden">
+            <div id="phase-progress">● ○ ○</div>
+            <div id="phase-instruction">Stand facing the camera</div>
+            <div id="phase-countdown">5</div>
+            <button id="next-phase-btn" class="hidden">Skip to Next ▶</button>
+        </div>
+
+        <div id="container">
+            <video id="webcam" autoplay playsinline muted></video>
+            <canvas id="output_canvas"></canvas>
+
+            <button id="switch-camera" title="Switch camera">&#8635;</button>
+
+            <div id="start-screen" class="overlay-screen">
+                <h2>MSK Movement Screen</h2>
+                <p>Three quick phases: front stance, side stance, then 3 slow squats. Prop your phone up and stand back about 8 ft so your full body is in frame.</p>
+                <p style="font-size:11px;color:#888;">This is a movement-screening tool, not a medical diagnosis.</p>
+                <button id="begin-btn" class="primary-btn">Begin Assessment</button>
+            </div>
+
+            <div id="report-screen" class="overlay-screen hidden">
+                <h2>Assessment Report</h2>
+                <div id="report-list"></div>
+                <p class="disclaimer">This screen reports movement and posture measurements captured by on-device computer vision. It is not a medical diagnosis and does not measure muscle strength or tissue health directly. If you see a flagged item, notice pain, or want a clinical interpretation, share this report with a physical therapist or physician.</p>
+                <button id="restart-btn" class="primary-btn">Restart Assessment</button>
+            </div>
+        </div>
 
         <div id="metrics-panel">
             <div class="metric"><span>Forward Head Angle:</span> <span id="head-angle" class="value">0°</span></div>
@@ -55,26 +85,6 @@
             <div class="metric"><span>Tracking Status:</span> <span id="status" class="value">Initializing...</span></div>
         </div>
 
-        <div id="start-screen" class="overlay-screen">
-            <h2>MSK Movement Screen</h2>
-            <p>Three quick phases: front stance, side stance, then 3 slow squats. Prop your phone up and stand back about 8 ft so your full body is in frame.</p>
-            <p style="font-size:11px;color:#888;">This is a movement-screening tool, not a medical diagnosis.</p>
-            <button id="begin-btn" class="primary-btn">Begin Assessment</button>
-        </div>
-
-        <div id="phase-banner" class="hidden">
-            <div id="phase-progress">● ○ ○</div>
-            <div id="phase-instruction">Stand facing the camera</div>
-            <div id="phase-countdown">4</div>
-            <button id="next-phase-btn" class="hidden">Skip to Next ▶</button>
-        </div>
-
-        <div id="report-screen" class="overlay-screen hidden">
-            <h2>Assessment Report</h2>
-            <div id="report-list"></div>
-            <p class="disclaimer">This screen reports movement and posture measurements captured by on-device computer vision. It is not a medical diagnosis and does not measure muscle strength or tissue health directly. If you see a flagged item, notice pain, or want a clinical interpretation, share this report with a physical therapist or physician.</p>
-            <button id="restart-btn" class="primary-btn">Restart Assessment</button>
-        </div>
     </div>
 
     <script type="module" src="app.js"></script>
