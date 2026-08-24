@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anatomy Tracker MVP</title>
+    <style>
+        body { margin: 0; background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        #container { position: relative; width: 90vw; max-width: 480px; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        #metrics-panel { position: absolute; bottom: 16px; left: 16px; right: 16px; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); padding: 12px; border-radius: 8px; border: 1px solid #333; font-size: 14px; }
+        .metric { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .value { font-weight: bold; color: #00ffcc; }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <!-- Capture back camera video stream -->
+        <video id="webcam" autoplay playsinline muted></video>
+        <!-- Transparent overlay to draw the skeleton skeleton lines -->
+        <canvas id="output_canvas"></canvas>
+        
+        <!-- Live Diagnostic Metrics Panel -->
+        <div id="metrics-panel">
+            <div class="metric"><span>Forward Head Angle:</span> <span id="head-angle" class="value">0°</span></div>
+            <div class="metric"><span>Pelvic Alignment:</span> <span id="pelvic-tilt" class="value">0°</span></div>
+            <div class="metric"><span>Tracking Status:</span> <span id="status" class="value">Initializing...</span></div>
+        </div>
+    </div>
+
+    <!-- Import MediaPipe Web Tasks CDN Libraries -->
+    <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
+    <script src="app.js"></script>
+</body>
+</html>
