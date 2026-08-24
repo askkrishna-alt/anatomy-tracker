@@ -1,6 +1,10 @@
-// Ensure MediaPipe namespaces are explicitly defined from the window global bundle
-const FilesetResolver = qv.FilesetResolver || window.tasksVision.FilesetResolver;
-const PoseLandmarker = qv.PoseLandmarker || window.tasksVision.PoseLandmarker;
+// Import MediaPipe Tasks Vision directly from jsDelivr as an ES module.
+// (This avoids the old UMD/global-namespace pattern, which is fragile and
+// was the source of the original "qv is not defined" crash.)
+import {
+  FilesetResolver,
+  PoseLandmarker
+} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 
 // Grab HTML UI components
 const video = document.getElementById("webcam");
@@ -17,21 +21,23 @@ let lastVideoTime = -1;
 async function initializeTracker() {
     try {
         statusUI.innerText = "Loading WebAssembly Components...";
-        
-        // Point directly to the jsDelivr CDN hosting the compiled WASM binaries
+
+        // Point to the WASM directory inside the tasks-vision package on jsDelivr
         const vision = await FilesetResolver.forVisionTasks(
-            "https://jsdelivr.net"
+            "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
         );
-        
+
         poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
             baseOptions: {
-                modelAssetPath: `https://googleapis.com`,
+                // Real, hosted .task model file (Google's public model bucket)
+                modelAssetPath:
+                    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task",
                 delegate: "GPU" // Uses phone GPU hardware acceleration
             },
             runningMode: "VIDEO",
             numPoses: 1
         });
-        
+
         statusUI.innerText = "Ready. Requesting Camera Access...";
         startCamera();
     } catch (error) {
@@ -42,6 +48,11 @@ async function initializeTracker() {
 
 // 2. Stream Android Back Camera into the Video element
 function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        statusUI.innerText = "Camera API not supported in this browser.";
+        return;
+    }
+
     const constraints = {
         video: { facingMode: "environment", width: 640, height: 480, frameRate: { ideal: 30 } }
     };
@@ -67,13 +78,13 @@ async function predictWebcam() {
     let startTimeMs = performance.now();
     if (lastVideoTime !== video.currentTime) {
         lastVideoTime = video.currentTime;
-        
+
         const results = poseLandmarker.detectForVideo(video, startTimeMs);
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        
+
         if (results.landmarks && results.landmarks.length > 0) {
             const landmarks = results.landmarks[0]; // Extract first detected person
-            
+
             drawSkeleton(landmarks);
             calculateBiometrics(landmarks);
         }
@@ -102,10 +113,10 @@ function calculateBiometrics(landmarks) {
         headAngleUI.innerText = `${forwardHeadAngle}°`;
         headAngleUI.style.color = forwardHeadAngle > 25 ? "#ff3333" : "#00ffcc";
     }
-    
+
     if (leftHip && rightHip) {
         const hipHeightDifference = Math.abs(leftHip.y - rightHip.y);
-        const pelvicTiltAngle = Math.round(hipHeightDifference * 100); 
+        const pelvicTiltAngle = Math.round(hipHeightDifference * 100);
         pelvicTiltUI.innerText = `${pelvicTiltAngle}° Delta`;
     }
 }

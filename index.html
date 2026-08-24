@@ -29,8 +29,9 @@
         </div>
     </div>
 
-    <!-- Import MediaPipe Web Tasks CDN Libraries -->
-    <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
-    <script src="app.js"></script>
+    <!-- app.js imports MediaPipe Tasks Vision itself as an ES module,
+         so it must be loaded with type="module" and no separate CDN
+         <script> tag is needed here. -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>
