@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anatomy Tracker MVP</title>
+    <title>Gait Assessment</title>
     <style>
         body { margin: 0; background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
         #app-wrapper { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 90vw; max-width: 480px; }
@@ -14,13 +14,10 @@
         #container { position: relative; width: 100%; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); background: #000; }
         video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 
-        /* Instruction banner and metrics now live OUTSIDE the video frame
-           (above/below it) so nothing ever covers the subject or skeleton. */
         #phase-banner { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); padding: 10px 14px; border-radius: 8px; border: 1px solid #333; text-align: center; }
-        #phase-progress { letter-spacing: 6px; color: #00ffcc; margin-bottom: 6px; font-size: 12px; }
         #phase-instruction { font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
         #phase-countdown { font-size: 22px; font-weight: bold; color: #00ffcc; }
-        #next-phase-btn { margin-top: 8px; padding: 6px 16px; border-radius: 16px; border: 1px solid #555; background: transparent; color: #aaa; font-size: 12px; cursor: pointer; }
+        #stop-btn { margin-top: 8px; padding: 6px 20px; border-radius: 16px; border: 1px solid #00ffcc; background: transparent; color: #00ffcc; font-size: 13px; cursor: pointer; }
 
         #metrics-panel { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); padding: 10px 12px; border-radius: 8px; border: 1px solid #333; font-size: 13px; }
         .metric { display: flex; justify-content: space-between; margin-bottom: 3px; }
@@ -28,13 +25,11 @@
         .hidden { display: none !important; }
 
         #switch-camera { position: absolute; top: 12px; right: 12px; width: 42px; height: 42px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 1px solid #444; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #switch-camera:active { background: rgba(0,255,204,0.3); }
 
         .overlay-screen { position: absolute; inset: 0; background: rgba(10,10,10,0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; z-index: 20; box-sizing: border-box; }
         .overlay-screen h2 { margin: 0 0 12px 0; font-size: 20px; }
         .overlay-screen p { font-size: 14px; color: #ccc; line-height: 1.5; max-width: 340px; }
         .primary-btn { margin-top: 20px; padding: 12px 28px; border-radius: 24px; border: none; background: #00ffcc; color: #111; font-weight: bold; font-size: 15px; cursor: pointer; }
-        .primary-btn:active { background: #00d9b0; }
 
         #report-screen { overflow-y: auto; align-items: stretch; justify-content: flex-start; padding: 20px; }
         #report-screen h2 { text-align: center; }
@@ -54,15 +49,14 @@
     <div id="app-wrapper">
 
         <div id="nav-bar">
-            <a href="index.html" class="active">MSK Movement Screen</a>
-            <a href="gait.html">Gait Assessment</a>
+            <a href="index.html">MSK Movement Screen</a>
+            <a href="gait.html" class="active">Gait Assessment</a>
         </div>
 
         <div id="phase-banner" class="hidden">
-            <div id="phase-progress">● ○ ○</div>
-            <div id="phase-instruction">Stand facing the camera</div>
+            <div id="phase-instruction">Walk across the frame, side-on to the camera</div>
             <div id="phase-countdown">5</div>
-            <button id="next-phase-btn" class="hidden">Skip to Next ▶</button>
+            <button id="stop-btn" class="hidden">Stop &amp; Analyze</button>
         </div>
 
         <div id="container">
@@ -72,30 +66,27 @@
             <button id="switch-camera" title="Switch camera">&#8635;</button>
 
             <div id="start-screen" class="overlay-screen">
-                <h2>MSK Movement Screen</h2>
-                <p>Three quick phases: front stance, side stance, then 3 slow squats. Prop your phone up and stand back about 8 ft so your full body is in frame.</p>
-                <p style="font-size:11px;color:#888;">This is a movement-screening tool, not a medical diagnosis.</p>
-                <p style="font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:8px;">For detailed clinical biomechanics (joint kinematics and quasi-static moment estimates), your clinician can run this same recording through a separate local desktop analysis tool. That tool runs on a computer, not through this website, and no video is uploaded anywhere by either tool.</p>
-                <button id="begin-btn" class="primary-btn">Begin Assessment</button>
+                <h2>Gait Assessment</h2>
+                <p>Position the camera to the side, perpendicular to a walking path with at least 4-5 steps of space. Stand back so your full body stays in frame as you walk across it — one or two passes is plenty.</p>
+                <p style="font-size:11px;color:#888;">This is a movement-screening tool, not a medical diagnosis. Only your near-side leg (facing the camera) is tracked reliably from a single camera.</p>
+                <p style="font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:8px;">This on-screen report shows kinematics (timing, joint angles) only. A separate local desktop tool can produce a fuller clinical report from this same recording — it runs on a computer, not through this website, and no video is uploaded anywhere by either tool.</p>
+                <button id="begin-btn" class="primary-btn">Begin Gait Capture</button>
             </div>
 
             <div id="report-screen" class="overlay-screen hidden">
-                <h2>Assessment Report</h2>
+                <h2>Gait Assessment Report</h2>
                 <div id="report-list"></div>
-                <p class="disclaimer">This screen reports movement and posture measurements captured by on-device computer vision. It is not a medical diagnosis and does not measure muscle strength or tissue health directly. If you see a flagged item, notice pain, or want a clinical interpretation, share this report with a physical therapist or physician.</p>
+                <p class="disclaimer">This screen reports movement measurements captured by on-device computer vision from a single side-view camera. It does not measure step width, inter-limb symmetry, or joint forces during gait, and is not a medical diagnosis. Share this report with a physical therapist or physician for clinical interpretation.</p>
                 <button id="restart-btn" class="primary-btn">Restart Assessment</button>
             </div>
         </div>
 
         <div id="metrics-panel">
-            <div class="metric"><span>Forward Head Angle:</span> <span id="head-angle" class="value">0°</span></div>
-            <div class="metric"><span>Pelvic Alignment:</span> <span id="pelvic-tilt" class="value">0</span></div>
-            <div class="metric"><span>Shoulder Symmetry:</span> <span id="shoulder-sym" class="value">0</span></div>
             <div class="metric"><span>Tracking Status:</span> <span id="status" class="value">Initializing...</span></div>
         </div>
 
     </div>
 
-    <script type="module" src="app.js"></script>
+    <script type="module" src="gait.js"></script>
 </body>
 </html>
