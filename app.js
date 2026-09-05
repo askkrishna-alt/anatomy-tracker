@@ -3,6 +3,7 @@ import {
   PoseLandmarker,
   DrawingUtils
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+import { getProbableContributingFactors, renderContributingFactorsHtml } from "./clinical_patterns.js";
 
 /* ============================================================
    DOM REFERENCES
@@ -1073,6 +1074,35 @@ function buildReportRows() {
     return rows;
 }
 
+function buildClinicalFindings() {
+    const front = assessment.results.front || {};
+    const plumb = assessment.results.plumbline || {};
+    const squat = assessment.results.squat || {};
+
+    const findings = {};
+    if (plumb.forwardHeadAngle != null) findings.forwardHeadAngle = plumb.forwardHeadAngle;
+
+    // Use whichever valgus signal is most concerning: squat (dynamic) if
+    // available, otherwise the static standing ratio.
+    if (squat.avgKneeValgusRatio != null) findings.kneeValgusRatio = squat.avgKneeValgusRatio;
+    else if (front.kneeAlignRatio != null) findings.kneeValgusRatio = front.kneeAlignRatio;
+
+    if (plumb.kneeLineOffsetIdx != null && plumb.kneeLineOffsetIdx < -4) {
+        findings.kneeHyperextensionFlag = true;
+    }
+    if (squat.avgTrunkLean != null && squat.avgTrunkLean > 40) {
+        findings.excessiveTrunkLeanFlag = true;
+    }
+    if (squat.heelLiftDetected) findings.heelLiftDetected = true;
+
+    if ((squat.avgKneeSymmetryDelta != null && squat.avgKneeSymmetryDelta > 10) ||
+        (front.poplitealDeltaIdx != null && front.poplitealDeltaIdx > 5)) {
+        findings.limbAsymmetryFlag = true;
+    }
+
+    return findings;
+}
+
 function showReport() {
     phaseBanner.classList.add("hidden");
     metricsPanel.classList.add("hidden");
@@ -1094,6 +1124,10 @@ function showReport() {
             <div class="report-note">${r.note}</div>
         </div>`;
     }
+
+    const patterns = getProbableContributingFactors(buildClinicalFindings());
+    html += renderContributingFactorsHtml(patterns);
+
     reportListUI.innerHTML = html;
     reportScreen.classList.remove("hidden");
 }

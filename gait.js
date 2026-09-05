@@ -3,6 +3,7 @@ import {
   PoseLandmarker,
   DrawingUtils
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+import { getProbableContributingFactors, renderContributingFactorsHtml } from "./clinical_patterns.js";
 
 /* ============================================================
    DOM REFERENCES
@@ -26,6 +27,23 @@ const stopBtn = document.getElementById("stop-btn");
 const reportScreen = document.getElementById("report-screen");
 const reportListUI = document.getElementById("report-list");
 const restartBtn = document.getElementById("restart-btn");
+const modeInstructionsUI = document.getElementById("mode-instructions");
+const viewModeBtns = document.querySelectorAll(".view-mode-btn");
+
+const MODE_INSTRUCTIONS = {
+    side: "Position the camera to the side, perpendicular to a walking path with at least 4-5 steps of space. Stand back so your full body stays in frame as you walk across it — one or two passes is plenty.",
+    front: "Position the camera facing you, at chest-to-hip height. Walk toward the camera for several steps, then turn around and walk away — one pass in each direction is plenty.",
+    rear: "Position the camera behind you, framing your legs and heels. Walk away from the camera for several steps, keeping your lower legs clearly visible.",
+};
+
+let selectedMode = "side";
+viewModeBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+        selectedMode = btn.dataset.mode;
+        viewModeBtns.forEach((b) => b.classList.toggle("active", b === btn));
+        modeInstructionsUI.innerText = MODE_INSTRUCTIONS[selectedMode];
+    });
+});
 
 /* ============================================================
    MEDIAPIPE / CAMERA SETUP (same pattern as index.html's app.js)
@@ -150,10 +168,11 @@ restartBtn.addEventListener("click", () => {
 
 function startCapture() {
     gait.buffer = [];
+    gait.mode = selectedMode;
     startScreen.classList.add("hidden");
     phaseBanner.classList.remove("hidden");
     stopBtn.classList.add("hidden");
-    phaseInstructionUI.innerText = "Get ready to walk across the frame, side-on to the camera";
+    phaseInstructionUI.innerText = "Get ready — " + MODE_INSTRUCTIONS[selectedMode];
 
     let remaining = COUNTDOWN_SEC;
     gait.state = "countdown";
@@ -183,7 +202,10 @@ function endCapture() {
     clearTimeout(gait.captureTimer);
     gait.state = "done";
     phaseBanner.classList.add("hidden");
-    showReport(analyzeGait(gait.buffer));
+    const analysis = gait.mode === "front" ? analyzeFrontGait(gait.buffer)
+        : gait.mode === "rear" ? analyzeRearGait(gait.buffer)
+        : analyzeGait(gait.buffer);
+    showReport(analysis, gait.mode);
 }
 
 /* ============================================================
@@ -346,13 +368,168 @@ function analyzeGait(buffer) {
 }
 
 /* ============================================================
+   STANCE-PHASE DETECTION (shared by front & rear view analysis)
+   ============================================================
+   Comparative heuristic: whichever ankle sits lower in the image frame
+   (larger normalized y) at a given moment is treated as the stance
+   (weight-bearing) leg, the other as mid-swing (lifted, smaller y).
+   This is intentionally comparative rather than an absolute threshold,
+   so it stays robust even as the subject changes apparent size while
+   walking toward/away from the camera. */
+function detectStanceWindows(buffer, minDurationMs = 150) {
+    const leftY = smoothSeries(buffer.map((f) => f.lm[27] ? f.lm[27].y : null), 5);
+    const rightY = smoothSeries(buffer.map((f) => f.lm[28] ? f.lm[28].y : null), 5);
+
+    const windows = [];
+    let currentSide = null, startIdx = null;
+
+    for (let i = 0; i < buffer.length; i++) {
+        if (leftY[i] === null || rightY[i] === null) continue;
+        const side = leftY[i] > rightY[i] ? "left" : "right";
+        if (side !== currentSide) {
+            if (currentSide !== null) {
+                const durationMs = buffer[i - 1].t - buffer[startIdx].t;
+                if (durationMs >= minDurationMs) windows.push({ side: currentSide, startIdx, endIdx: i - 1 });
+            }
+            currentSide = side;
+            startIdx = i;
+        }
+    }
+    if (currentSide !== null) {
+        const durationMs = buffer[buffer.length - 1].t - buffer[startIdx].t;
+        if (durationMs >= minDurationMs) windows.push({ side: currentSide, startIdx, endIdx: buffer.length - 1 });
+    }
+    return windows;
+}
+
+// Signed deviation of a joint from the straight line between two other
+// joints, positive = toward the body midline. Same technique already used
+// in app.js for frontal-plane knee valgus and sagittal knee hyperextension.
+function signedDeviationFromLine(proximal, joint, distal, midlineX) {
+    if (proximal.y === distal.y) return null;
+    const t = (joint.y - proximal.y) / (distal.y - proximal.y);
+    const expectedX = proximal.x + (distal.x - proximal.x) * t;
+    const inwardSign = Math.sign(midlineX - proximal.x) || 1;
+    return (joint.x - expectedX) * inwardSign;
+}
+
+/* ============================================================
+   FRONT-VIEW ANALYSIS: dynamic knee valgus + Trendelenburg (hip-drop) pattern
+   ============================================================ */
+function analyzeFrontGait(buffer) {
+    if (buffer.length < 30) {
+        return { valid: false, mode: "front", note: "Not enough tracking data captured. Try a longer walk toward/away from the camera." };
+    }
+    const windows = detectStanceWindows(buffer);
+    if (windows.length < 2) {
+        return { valid: false, mode: "front", note: "Could not detect clear alternating stance phases. Make sure both legs are visible as you walk toward/away from the camera." };
+    }
+
+    const HIP = { left: 23, right: 24 }, KNEE = { left: 25, right: 26 }, ANKLE = { left: 27, right: 28 };
+    const trackingConfidence = Math.round((avgVisibility(buffer, [23, 24, 25, 26, 27, 28]) || 0) * 100);
+
+    const results = { left: { valgusDevs: [], hipDropDevs: [] }, right: { valgusDevs: [], hipDropDevs: [] } };
+
+    for (const w of windows) {
+        const other = w.side === "left" ? "right" : "left";
+        for (let i = w.startIdx; i <= w.endIdx; i++) {
+            const s = buffer[i].lm;
+            const hip = s[HIP[w.side]], knee = s[KNEE[w.side]], ankle = s[ANKLE[w.side]];
+            const hipOther = s[HIP[other]];
+            const hipL = s[23], hipR = s[24];
+            if (hip && knee && ankle && hipL && hipR) {
+                const midlineX = (hipL.x + hipR.x) / 2;
+                const dev = signedDeviationFromLine(hip, knee, ankle, midlineX);
+                if (dev !== null) results[w.side].valgusDevs.push(dev);
+            }
+            if (hip && hipOther) {
+                results[w.side].hipDropDevs.push(hipOther.y - hip.y); // positive = contralateral hip lower (dropped)
+            }
+        }
+    }
+
+    const summarize = (side) => ({
+        avgValgusDevIdx: results[side].valgusDevs.length ? Math.round(avg(results[side].valgusDevs) * 100) : null,
+        avgHipDropIdx: results[side].hipDropDevs.length ? Math.round(avg(results[side].hipDropDevs) * 100) : null,
+    });
+
+    return {
+        valid: true, mode: "front",
+        trackingConfidence,
+        stancePhasesDetected: windows.length,
+        left: summarize("left"),
+        right: summarize("right"),
+    };
+}
+
+/* ============================================================
+   REAR-VIEW ANALYSIS: shank/heel frontal-plane alignment during stance
+   ============================================================ */
+function analyzeRearGait(buffer) {
+    if (buffer.length < 30) {
+        return { valid: false, mode: "rear", note: "Not enough tracking data captured. Try a longer walk away from the camera." };
+    }
+    const windows = detectStanceWindows(buffer);
+    if (windows.length < 2) {
+        return { valid: false, mode: "rear", note: "Could not detect clear alternating stance phases. Make sure both legs and heels are visible as you walk away from the camera." };
+    }
+
+    const HIP = { left: 23, right: 24 }, KNEE = { left: 25, right: 26 }, ANKLE = { left: 27, right: 28 };
+    const trackingConfidence = Math.round((avgVisibility(buffer, [25, 26, 27, 28, 29, 30]) || 0) * 100);
+
+    const shankDevs = { left: [], right: [] };
+    for (const w of windows) {
+        for (let i = w.startIdx; i <= w.endIdx; i++) {
+            const s = buffer[i].lm;
+            const knee = s[KNEE[w.side]], ankle = s[ANKLE[w.side]];
+            const hipL = s[23], hipR = s[24];
+            if (knee && ankle && hipL && hipR) {
+                const midlineX = (hipL.x + hipR.x) / 2;
+                // Shank vector (knee->ankle) horizontal offset, signed toward
+                // the midline (medial/pronation-associated) or away from it
+                // (lateral/supination-associated) — a simple frontal-plane
+                // lean proxy since we don't have a true vertical reference
+                // in-frame to compare the shank against.
+                const verticalDev = (ankle.x - knee.x);
+                const inwardSign = Math.sign(midlineX - knee.x) || 1;
+                shankDevs[w.side].push(verticalDev * inwardSign);
+            }
+        }
+    }
+
+    const summarize = (side) => {
+        const devs = shankDevs[side];
+        if (!devs.length) return null;
+        const meanDev = avg(devs);
+        return {
+            devIdx: Math.round(meanDev * 100),
+            direction: meanDev > 0 ? "medial" : "lateral",
+        };
+    };
+
+    return {
+        valid: true, mode: "rear",
+        trackingConfidence,
+        stancePhasesDetected: windows.length,
+        left: summarize("left"),
+        right: summarize("right"),
+    };
+}
+
+/* ============================================================
    REPORT RENDERING
    ============================================================ */
 function flagClass(level) {
     return { good: "flag-good", moderate: "flag-moderate", flag: "flag-alert" }[level] || "flag-good";
 }
 
-function showReport(result) {
+function showReport(result, mode) {
+    if (mode === "front") return showFrontReport(result);
+    if (mode === "rear") return showRearReport(result);
+    return showSideReport(result);
+}
+
+function showSideReport(result) {
     const rows = [];
     const push = (section, row) => rows.push({ section, ...row });
 
@@ -432,6 +609,138 @@ function showReport(result) {
             <div class="report-note">${r.note}</div>
         </div>`;
     }
+    reportListUI.innerHTML = html;
+    reportScreen.classList.remove("hidden");
+}
+
+function renderRows(rows) {
+    let html = "";
+    let lastSection = null;
+    for (const r of rows) {
+        if (r.section !== lastSection) {
+            html += `<div class="report-section-header">${r.section}</div>`;
+            lastSection = r.section;
+        }
+        html += `
+        <div class="report-row ${flagClass(r.level)}">
+            <div class="report-row-top">
+                <span class="report-label">${r.label}</span>
+                <span class="report-value">${r.value}</span>
+            </div>
+            <div class="report-note">${r.note}</div>
+        </div>`;
+    }
+    return html;
+}
+
+function showFrontReport(result) {
+    const rows = [];
+    const push = (section, row) => rows.push({ section, ...row });
+
+    if (!result.valid) {
+        push("Front-View Gait Assessment", { label: "Analysis", value: "Incomplete", level: "moderate", note: result.note });
+    } else {
+        push("Capture Summary", {
+            label: "Tracking Confidence", value: `${result.trackingConfidence}%`,
+            level: result.trackingConfidence < 60 ? "flag" : result.trackingConfidence < 80 ? "moderate" : "good",
+            note: "Average visibility across both hips, knees, and ankles during the capture."
+        });
+        push("Capture Summary", {
+            label: "Stance Phases Detected", value: `${result.stancePhasesDetected}`, level: "good",
+            note: "Alternating left/right weight-bearing phases identified from comparative ankle height."
+        });
+
+        for (const side of ["left", "right"]) {
+            const r = result[side];
+            if (!r) continue;
+            const label = side === "left" ? "Left" : "Right";
+            if (r.avgValgusDevIdx != null) {
+                const interp = r.avgValgusDevIdx > 3 ? "Valgus tendency" : r.avgValgusDevIdx < -3 ? "Varus tendency" : "Within normal range";
+                push(`${label} Leg — Stance Phase`, {
+                    label: "Dynamic Knee Alignment", value: `${r.avgValgusDevIdx} idx — ${interp}`,
+                    level: Math.abs(r.avgValgusDevIdx) > 6 ? "flag" : Math.abs(r.avgValgusDevIdx) > 3 ? "moderate" : "good",
+                    note: `Knee position relative to the hip-ankle line during ${label.toLowerCase()}-leg stance phases of walking. Positive = drifted toward the midline (valgus).`
+                });
+            }
+            if (r.avgHipDropIdx != null) {
+                const dropping = r.avgHipDropIdx > 2;
+                push(`${label} Leg — Stance Phase`, {
+                    label: "Contralateral Hip Drop", value: `${r.avgHipDropIdx} idx${dropping ? " — drop observed" : ""}`,
+                    level: r.avgHipDropIdx > 5 ? "flag" : r.avgHipDropIdx > 2 ? "moderate" : "good",
+                    note: `How much the opposite hip drops during ${label.toLowerCase()}-leg single-limb stance — the classic Trendelenburg-test signal.`
+                });
+            }
+        }
+    }
+
+    let html = renderRows(rows);
+
+    if (result.valid) {
+        let allPatterns = [];
+        for (const side of ["left", "right"]) {
+            const r = result[side];
+            const findings = {};
+            if (r && r.avgValgusDevIdx != null && r.avgValgusDevIdx > 3) {
+                findings.frontGaitKneeValgus = { side: side === "left" ? "Left" : "Right" };
+            }
+            if (r && r.avgHipDropIdx != null && r.avgHipDropIdx > 5) {
+                findings.trendelenburgPattern = { side: side === "left" ? "Left" : "Right" };
+            }
+            allPatterns = allPatterns.concat(getProbableContributingFactors(findings));
+        }
+        html += renderContributingFactorsHtml(allPatterns);
+    }
+
+    reportListUI.innerHTML = html;
+    reportScreen.classList.remove("hidden");
+}
+
+function showRearReport(result) {
+    const rows = [];
+    const push = (section, row) => rows.push({ section, ...row });
+
+    if (!result.valid) {
+        push("Rear-View Gait Assessment", { label: "Analysis", value: "Incomplete", level: "moderate", note: result.note });
+    } else {
+        push("Capture Summary", {
+            label: "Tracking Confidence", value: `${result.trackingConfidence}%`,
+            level: result.trackingConfidence < 60 ? "flag" : result.trackingConfidence < 80 ? "moderate" : "good",
+            note: "Average visibility across knees, ankles, and heels during the capture — the lowest-confidence landmarks in pose estimation, so weight this report accordingly."
+        });
+        push("Capture Summary", {
+            label: "Stance Phases Detected", value: `${result.stancePhasesDetected}`, level: "good",
+            note: "Alternating left/right weight-bearing phases identified from comparative ankle height."
+        });
+
+        for (const side of ["left", "right"]) {
+            const r = result[side];
+            if (!r) continue;
+            const label = side === "left" ? "Left" : "Right";
+            if (r) {
+                push(`${label} Leg — Stance Phase`, {
+                    label: "Shank Frontal-Plane Lean", value: `${Math.abs(r.devIdx)} idx (${r.direction})`,
+                    level: Math.abs(r.devIdx) > 6 ? "flag" : Math.abs(r.devIdx) > 3 ? "moderate" : "good",
+                    note: `Lower-leg lean during ${label.toLowerCase()}-leg stance, viewed from behind. A medial lean is the classic visual proxy for a dynamic pronation-associated pattern; lateral lean is supination-associated. This is the roughest measurement in this whole tool — heel/ankle landmarks are the least reliable from any single camera angle.`
+                });
+            }
+        }
+    }
+
+    let html = renderRows(rows);
+
+    if (result.valid) {
+        let allPatterns = [];
+        for (const side of ["left", "right"]) {
+            const r = result[side];
+            const findings = {};
+            if (r && Math.abs(r.devIdx) > 3) {
+                findings.rearShankAlignment = { side: side === "left" ? "Left" : "Right", direction: r.direction };
+            }
+            allPatterns = allPatterns.concat(getProbableContributingFactors(findings));
+        }
+        html += renderContributingFactorsHtml(allPatterns);
+    }
+
     reportListUI.innerHTML = html;
     reportScreen.classList.remove("hidden");
 }
