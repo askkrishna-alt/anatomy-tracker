@@ -1,0 +1,1382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>OrthoAssess PT Shoulder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f5f5; --surface:#ffffff; --sunken:#e7eded; --line:#d0dada; --ink:#12222a; --muted:#55666c;
+  --accent:#0a6b68; --accent-ink:#ffffff; --accent-soft:#d3eae8;
+  --ok:#1b7442; --ok-soft:#dbefe2; --warn:#8f5b00; --warn-soft:#f7e9cc; --bad:#ae2429; --bad-soft:#f6dadb;
+  --info:#2a5aa2; --info-soft:#dce6f5; --stage:#0c1517; --stage-ink:#e9f2f2;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1719; --surface:#152224; --sunken:#1b2b2e; --line:#2a3d40; --ink:#e3eeee; --muted:#93a7aa;
+  --accent:#4fbdb6; --accent-ink:#06201f; --accent-soft:#163a39;
+  --ok:#5fcf8c; --ok-soft:#143323; --warn:#e9b04d; --warn-soft:#3a2b0d; --bad:#f07a7d; --bad-soft:#3d1719;
+  --info:#82aef0; --info-soft:#18294a; --stage:#050b0c; --stage-ink:#e9f2f2; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0e1719; --surface:#152224; --sunken:#1b2b2e; --line:#2a3d40; --ink:#e3eeee; --muted:#93a7aa;
+  --accent:#4fbdb6; --accent-ink:#06201f; --accent-soft:#163a39;
+  --ok:#5fcf8c; --ok-soft:#143323; --warn:#e9b04d; --warn-soft:#3a2b0d; --bad:#f07a7d; --bad-soft:#3d1719;
+  --info:#82aef0; --info-soft:#18294a; --stage:#050b0c; --stage-ink:#e9f2f2; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-display);margin:0;line-height:1.2;text-wrap:balance}
+h2{font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+[hidden]{display:none!important}
+
+/* top bar */
+.topbar{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.topbar-in{display:flex;align-items:center;gap:16px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:var(--accent);display:grid;place-items:center}
+.brand-mark svg{width:20px;height:20px}
+.brand h1{font-size:1.05rem;font-weight:700}
+.brand p{font-size:.75rem;color:var(--muted)}
+.pt-chip{font-size:.8rem;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pt-chip b{color:var(--ink);font-weight:600}
+.status{font-size:.78rem;display:flex;align-items:center;gap:6px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dot.on{background:var(--ok)} .dot.busy{background:var(--warn)} .dot.bad{background:var(--bad)}
+.iconbtn{border:1px solid var(--line);background:var(--sunken);border-radius:8px;padding:6px 10px;font-size:.8rem}
+
+/* layout */
+.app{display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1440px;margin:0 auto}
+.rail{position:sticky;top:76px;align-self:start;display:flex;flex-direction:column;gap:2px}
+.rail button{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;text-align:left;border:0;background:none;padding:9px 10px;border-radius:8px;color:var(--muted)}
+.rail button .n{font-family:var(--f-mono);font-size:.75rem;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center}
+.rail button.active{background:var(--surface);color:var(--ink);box-shadow:inset 3px 0 0 var(--accent)}
+.rail button.active .n{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.rail button .tick{font-size:.7rem;color:var(--ok);font-family:var(--f-mono)}
+.rail-note{margin-top:14px;padding:12px;font-size:.75rem;color:var(--muted);border-top:1px solid var(--line)}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{position:static;flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:4px}
+  .rail button{grid-template-columns:24px auto;white-space:nowrap}
+  .rail button .tick{display:none}
+  .rail-note{display:none}
+}
+.step{display:flex;flex-direction:column;gap:18px;min-width:0}
+.step-head{display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.lede{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:18px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);font-weight:500}
+label.f.wide{grid-column:1/-1}
+input[type=text],input[type=number],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:.92rem;color:var(--ink);width:100%}
+textarea{min-height:76px;resize:vertical}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:.9rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer}
+.check input{margin-top:3px;accent-color:var(--accent)}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:8px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;font-size:.9rem;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.step-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.note{font-size:.82rem;padding:10px 12px;border-radius:8px;background:var(--info-soft);color:var(--ink);border:1px solid color-mix(in srgb,var(--info) 30%,transparent)}
+.note.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.note.bad{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
+
+/* capture */
+.capture{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1100px){.capture{grid-template-columns:minmax(0,1fr)}}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.stage-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line)}
+.stage-head h3{margin-right:auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:6px 12px;font-size:.82rem;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.badge{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:99px;background:var(--sunken);color:var(--muted);font-weight:600}
+.viewwrap{background:var(--stage);display:flex;justify-content:center}
+.viewport{position:relative;width:100%;aspect-ratio:16/9;max-width:100%;background:var(--stage);color:var(--stage-ink);overflow:hidden}
+.viewport video,.viewport canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px;color:var(--stage-ink)}
+.placeholder p{max-width:44ch;font-size:.88rem;opacity:.8}
+.hud{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:12px}
+.hud-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.readout{background:rgba(5,12,13,.72);border-radius:10px;padding:8px 14px;display:flex;flex-direction:column;min-width:120px}
+.readout .lab{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.readout .val{font-family:var(--f-mono);font-size:2.3rem;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums}
+.readout .sub{font-family:var(--f-mono);font-size:.72rem;opacity:.8}
+.qual{background:rgba(5,12,13,.72);border-radius:8px;padding:6px 10px;font-family:var(--f-mono);font-size:.7rem;text-align:right}
+.count{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-display);font-size:7rem;font-weight:700;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.6)}
+.prompt{align-self:center;background:rgba(5,12,13,.8);border-radius:10px;padding:10px 16px;font-weight:600;font-size:1rem;text-align:center;max-width:90%}
+.prompt.pain{background:rgba(174,36,41,.9)}
+.prompt.alert{background:rgba(143,91,0,.95);border:1px solid #ffd166;animation:pulseAlert 1s infinite alternate;}
+@keyframes pulseAlert { from { opacity: 0.85; } to { opacity: 1; transform: scale(1.02); } }
+.controls{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--line);align-items:center}
+.controls .sp{flex:1}
+.painbtn{border:2px solid var(--warn);background:var(--warn-soft);color:var(--ink);font-weight:700;border-radius:10px;padding:10px 18px;min-width:120px}
+.painbtn.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.result{padding:16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:12px;background:var(--bg)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.kv div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.kv .k{font-size:.72rem;color:var(--muted);font-weight:500}
+.kv .v{font-family:var(--f-mono);font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums}
+.flag{display:inline-flex;gap:6px;align-items:center;font-size:.78rem;font-weight:600;padding:3px 9px;border-radius:99px}
+.flag.ok{background:var(--ok-soft);color:var(--ok)} .flag.warn{background:var(--warn-soft);color:var(--warn)} .flag.bad{background:var(--bad-soft);color:var(--bad)} .flag.info{background:var(--info-soft);color:var(--info)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:6px;min-width:34px;padding:5px 0;font-family:var(--f-mono);font-size:.82rem}
+.chips button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chips button.na{padding:5px 8px}
+
+/* Interactive Pain Map Component */
+.pain-map-container { display:flex; flex-direction:column; gap:10px; align-items:center; background:var(--sunken); border:1px solid var(--line); border-radius:8px; padding:12px; }
+.pain-map-svg { width: 100%; max-width: 220px; height: auto; cursor: pointer; }
+.pain-zone { fill: var(--surface); stroke: var(--line); stroke-width: 2; transition: all 0.2s; }
+.pain-zone:hover { fill: var(--accent-soft); stroke: var(--accent); }
+.pain-zone.selected { fill: var(--bad); stroke: #fff; }
+.pain-legend { display: flex; gap: 12px; font-size: 0.75rem; color: var(--muted); }
+
+.tasks{display:flex;flex-direction:column;gap:8px}
+.task{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 14px}
+.task.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.task .t{font-weight:600;font-size:.95rem}
+.task .d{font-size:.78rem;color:var(--muted);grid-column:1/-1}
+.task .st{display:flex;gap:4px}
+.pill{font-family:var(--f-mono);font-size:.72rem;padding:2px 7px;border-radius:6px;background:var(--sunken);color:var(--muted);white-space:nowrap}
+.pill.done{background:var(--ok-soft);color:var(--ok)}
+.pill.flagd{background:var(--warn-soft);color:var(--warn)}
+.instr{display:flex;flex-direction:column;gap:10px}
+.instr ol,.instr ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:.88rem}
+.instr h4{font-size:.8rem;font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+
+/* questionnaires */
+.q{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;padding:10px 0;border-bottom:1px solid var(--line)}
+.q:last-child{border-bottom:0}
+.q .qt{font-size:.9rem}
+.q .qt b{font-family:var(--f-mono);color:var(--muted);font-weight:600;margin-right:6px}
+.anchors{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);max-width:430px}
+.score{display:flex;gap:18px;flex-wrap:wrap}
+.score div{display:flex;flex-direction:column}
+.score .v{font-family:var(--f-mono);font-size:1.6rem;font-weight:600}
+.score .k{font-size:.75rem;color:var(--muted)}
+
+/* report */
+.report{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:28px;display:flex;flex-direction:column;gap:22px;min-width:0}
+.report h3{font-size:1rem;border-bottom:2px solid var(--ink);padding-bottom:4px}
+.rhead{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-end;border-bottom:3px solid var(--accent);padding-bottom:14px}
+.rhead h2{font-size:1.45rem}
+.rmeta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:8px 18px;font-size:.85rem}
+.rmeta .k{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-family:var(--f-mono)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-family:var(--f-mono);font-weight:600;white-space:nowrap}
+td.n{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.src{font-family:var(--f-mono);font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.src.cam{background:var(--accent-soft);color:var(--accent)} .src.pt{background:var(--info-soft);color:var(--info)} .src.cl{background:var(--sunken);color:var(--ink)} .src.mod{background:var(--warn-soft);color:var(--warn)}
+.findings{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:.92rem}
+.snaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:10px}
+.snaps figure{margin:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--stage)}
+.snaps img{display:block;width:100%}
+.snaps figcaption{font-size:.72rem;padding:6px 8px;background:var(--surface);color:var(--muted)}
+.sig{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:18px;font-size:.85rem}
+.sig div{border-top:1px solid var(--ink);padding-top:6px}
+.fine{font-size:.76rem;color:var(--muted);line-height:1.5}
+.demo-banner{background:var(--warn-soft);color:var(--warn);font-weight:700;text-align:center;padding:6px;border-radius:6px;font-family:var(--f-mono);letter-spacing:.08em;font-size:.78rem}
+.redbox{border:2px solid var(--bad);background:var(--bad-soft);border-radius:8px;padding:12px 14px;font-size:.9rem}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.88rem;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{
+  :root{--bg:#fff;--surface:#fff;--ink:#000;--muted:#444;--line:#bbb;color-scheme:light}
+  body{background:#fff}
+  .topbar,.rail,.no-print,.step:not(#step-report){display:none!important}
+  .app{display:block;padding:0}
+  .report{border:0;padding:0}
+  .snaps figure{break-inside:avoid}
+  tr{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="4.5" r="2"/><path d="M12 7v7M12 14l-3 6M12 14l3 6M12 9l-6-3M12 9l5 4"/></svg>
+      </div>
+      <div><h1>OrthoAssess PT</h1><p>Shoulder &amp; posture · virtual objective assessment</p></div>
+    </div>
+    <div class="pt-chip" id="ptChip"></div>
+    <div class="status"><span class="dot" id="camDot"></span><span id="camStatus">Camera off</span></div>
+    <button class="iconbtn" data-act="theme" title="Switch light / dark">Theme</button>
+  </div>
+</header>
+
+<div class="app">
+  <nav class="rail" id="rail" aria-label="Assessment steps"></nav>
+
+  <main id="main">
+
+    <!-- 1 SETUP -->
+    <section class="step" id="step-setup">
+      <div class="step-head">
+        <p class="eyebrow">Step 1 · Session setup</p>
+        <h2>Patient, consent and camera</h2>
+        <p class="lede">Fill this in at the start of the video consultation. The patient opens this same page on their phone or laptop; the pose analysis runs on their device and no video leaves it.</p>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <h3>Patient</h3>
+          <div class="fields">
+            <label class="f">Name<input type="text" id="p-name" data-bind="patient.name" autocomplete="off"></label>
+            <label class="f">Patient ID / MRN<input type="text" id="p-id" data-bind="patient.pid" autocomplete="off"></label>
+            <label class="f">Age<input type="number" id="p-age" min="1" max="110" data-bind="patient.age"></label>
+            <label class="f">Sex<select id="p-sex" data-bind="patient.sex"><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select></label>
+            <label class="f">Affected side<select id="p-aff" data-bind="patient.affected"><option>Right</option><option>Left</option><option>Both</option></select></label>
+            <label class="f">Dominant hand<select id="p-dom" data-bind="patient.dominant"><option>Right</option><option>Left</option></select></label>
+            <label class="f wide">Presenting complaint<input type="text" id="p-cc" data-bind="patient.complaint" placeholder="e.g. Right shoulder pain on reaching overhead, 6 weeks"></label>
+            <label class="f">Onset<select id="p-onset" data-bind="patient.onset"><option value="">—</option><option>Insidious</option><option>Traumatic</option><option>Post-operative</option><option>Overuse / activity change</option></select></label>
+            <label class="f">Duration (weeks)<input type="number" id="p-dur" min="0" data-bind="patient.duration"></label>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Clinician &amp; session</h3>
+          <div class="fields">
+            <label class="f">Clinician name<input type="text" id="c-name" data-bind="clinician.name"></label>
+            <label class="f">Registration no.<input type="text" id="c-reg" data-bind="clinician.reg"></label>
+            <label class="f">Pose model<select id="m-model" data-bind="meta.model"><option value="full">Standard (recommended)</option><option value="lite">Lite (older phones)</option><option value="heavy">High accuracy (fast laptops)</option></select></label>
+            <label class="f">Voice prompts<select id="m-voice" data-bind="meta.voice"><option value="on">On</option><option value="off">Off</option></select></label>
+          </div>
+          <div id="secureNote" class="note warn" hidden>This page is not running over https, so the browser will block the camera. Host the file (for example on GitHub Pages or Netlify) or open it from a local file on a laptop.</div>
+          <div class="row">
+            <button class="btn primary" data-act="cam-start">Start camera</button>
+            <button class="btn" data-act="demo">Load example data</button>
+          </div>
+          <p class="fine">Example data fills every step with a made-up patient so you can see the full report without a camera. It is marked as an example throughout.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Red-flag screen</h3>
+        <p class="muted" style="font-size:.85rem">Ask before any movement testing. Any ticked item means the patient needs in-person or urgent medical review, and movement testing should not go ahead remotely.</p>
+        <div class="checks" id="redflags"></div>
+        <div id="rfAlert" hidden></div>
+      </div>
+
+      <div class="panel">
+        <h3>Consent</h3>
+        <label class="check"><input type="checkbox" id="consent" data-bind="consent"><span>The patient agrees to camera-based movement analysis during this consultation. Video is analysed on the patient's own device and is not recorded or uploaded. A few still images at peak range are kept in the report.</span></label>
+      </div>
+      <div class="step-foot"><span></span><button class="btn primary" data-act="go" data-step="posture">Next: posture</button></div>
+    </section>
+
+    <!-- 2 POSTURE -->
+    <section class="step" id="step-posture" hidden>
+      <div class="step-head">
+        <p class="eyebrow">Step 2 · Static posture</p>
+        <h2>Standing posture, front and side</h2>
+        <p class="lede">Two 3-second captures. The app measures shoulder and head alignment from detected joint centres and averages them over about 75 frames.</p>
+      </div>
+      <div class="capture" id="slot-posture"></div>
+      <div class="step-foot"><button class="btn" data-act="go" data-step="setup">Back</button><button class="btn primary" data-act="go" data-step="rom">Next: range of motion</button></div>
+    </section>
+
+    <!-- 3 ROM -->
+    <section class="step" id="step-rom" hidden>
+      <div class="step-head">
+        <p class="eyebrow">Step 3 · Active range of motion</p>
+        <h2>Shoulder AROM, both sides</h2>
+        <p class="lede">Test the unaffected side first to give a personal reference. The patient presses the pain button (or the space bar) when pain starts and again when it stops, which records a painful arc.</p>
+      </div>
+      <div class="capture" id="slot-rom"></div>
+      <div class="step-foot"><button class="btn" data-act="go" data-step="posture">Back</button><button class="btn primary" data-act="go" data-step="tests">Next: special tests</button></div>
+    </section>
+
+    <!-- 4 TESTS -->
+    <section class="step" id="step-tests" hidden>
+      <div class="step-head">
+        <p class="eyebrow">Step 4 · Camera-assisted tests</p>
+        <h2>Modified special tests</h2>
+        <p class="lede">Grouped by structure for differential reasoning: rotator cuff, subacromial, biceps and labrum, AC joint. These are remote adaptations. The camera confirms the test position and measures speed, hold time and reach; the patient reports pain and weakness. The report labels them as modified and counts the published test clusters for reference.</p>
+      </div>
+      <div class="capture" id="slot-tests"></div>
+      <div class="step-foot"><button class="btn" data-act="go" data-step="rom">Back</button><button class="btn primary" data-act="go" data-step="prom">Next: questionnaires</button></div>
+    </section>
+
+    <!-- 5 PROMs -->
+    <section class="step" id="step-prom" hidden>
+      <div class="step-head">
+        <p class="eyebrow">Step 5 · Patient-reported outcomes</p>
+        <h2>Pain, SPADI, ASES and patient global</h2>
+        <p class="lede">The SPADI pain and disability subscales match the OMERACT shoulder pain and function domains most closely, so it stays the primary measure. ASES adds a cuff-oriented function score; the patient global and PSFS cover what matters most to this patient.</p>
+      </div>
+      <div class="panel">
+        <h3>Numeric pain rating (0 = no pain, 10 = worst imaginable)</h3>
+        <div id="nprsBlock"></div>
+      </div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><h3>SPADI</h3><div class="score" id="spadiScore"></div></div>
+        <div id="spadiBlock"></div>
+      </div>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between"><h3>ASES shoulder score, patient section</h3><div class="score" id="asesScore"></div></div>
+        <p class="fine">American Shoulder and Elbow Surgeons standardised assessment. Recommended alongside the DASH for rotator cuff and subacromial conditions. Rate the affected shoulder. 0–100, higher is better.</p>
+        <div id="asesBlock"></div>
+      </div>
+      <div class="panel">
+        <h3>Patient global and patient-specific function</h3>
+        <p class="fine">Patient global assessment is one of the four mandatory domains in the OMERACT core domain set for shoulder disorders. The Patient-Specific Functional Scale records up to three activities the patient chooses.</p>
+        <div id="pgaBlock"></div>
+        <div id="psfsBlock"></div>
+      </div>
+      <div class="step-foot"><button class="btn" data-act="go" data-step="tests">Back</button><button class="btn primary" data-act="go" data-step="clinician">Next: clinician entry</button></div>
+    </section>
+
+    <!-- 6 CLINICIAN -->
+    <section class="step" id="step-clinician" hidden>
+      <div class="step-head">
+        <p class="eyebrow">Step 6 · Clinician entry</p>
+        <h2>Observations and screening</h2>
+        <p class="lede">What you saw during the call and anything the camera cannot measure. Items you leave as "Not assessed" appear in the report's not-assessed list.</p>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <h3>Observation</h3>
+          <label class="f">Visual observation (wasting, swelling, scapular position, winging, movement quality)<textarea id="c-obs" data-bind="clinician.obs"></textarea></label>
+          <div class="fields">
+            <label class="f">Hand behind back, right<select id="c-hbbr" data-bind="clinician.hbbR"></select></label>
+            <label class="f">Hand behind back, left<select id="c-hbbl" data-bind="clinician.hbbL"></select></label>
+          </div>
+          <label class="f">Scapular dyskinesis on elevation (observed)<select id="c-scap" data-bind="clinician.scap"><option value="na">Not assessed</option><option>Not observed</option><option>Subtle</option><option>Obvious</option></select></label>
+        </div>
+        <div class="panel">
+          <h3>Neurological screen</h3>
+          <p class="fine">Reflexes cannot be reliably graded remotely. Enter a grade only if a trained helper performed the test under your direct video supervision.</p>
+          <div class="fields" id="reflexFields"></div>
+          <label class="check"><input type="checkbox" id="c-helper" data-bind="clinician.reflexHelper"><span>Reflexes performed by a helper under clinician video supervision</span></label>
+          <div class="fields">
+            <label class="f">Sensation C5–T1 (patient self-test, light touch)<select id="c-sens" data-bind="clinician.sensation"><option value="na">Not assessed</option><option>Reported normal</option><option>Reported altered</option></select></label>
+            <label class="f">Sensory note<input type="text" id="c-sensn" data-bind="clinician.sensNote" placeholder="e.g. reduced over lateral arm"></label>
+          </div>
+          <label class="f">Cervical screen (active neck movements reproduce arm symptoms?)<select id="c-cerv" data-bind="clinician.cervical"><option value="na">Not assessed</option><option>No</option><option>Yes</option></select></label>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Clinical impression and plan</h3>
+        <div class="grid2">
+          <label class="f">Clinical impression (clinician's own interpretation)<textarea id="c-imp" data-bind="clinician.impression"></textarea></label>
+          <label class="f">Plan / referral<textarea id="c-plan" data-bind="clinician.plan"></textarea></label>
+        </div>
+      </div>
+      <div class="step-foot"><button class="btn" data-act="go" data-step="prom">Back</button><button class="btn primary" data-act="go" data-step="report">Generate report</button></div>
+    </section>
+
+    <!-- 7 REPORT -->
+    <section class="step" id="step-report" hidden>
+      <div class="row no-print" style="justify-content:space-between">
+        <div class="step-head"><p class="eyebrow">Step 7 · Report</p><h2>Assessment report</h2></div>
+        <div class="row">
+          <button class="btn primary" data-act="print">Print / save as PDF</button>
+          <button class="btn" data-act="json">Download data (JSON)</button>
+          <button class="btn" data-act="copy">Copy summary</button>
+          <button class="btn danger" data-act="reset-ask">New session</button>
+        </div>
+      </div>
+      <div id="resetConfirm" class="note bad no-print" hidden>
+        <div class="row" style="justify-content:space-between"><span>Clear every result and start a new session? This cannot be undone.</span>
+        <span class="row"><button class="btn" data-act="reset-no">Keep</button><button class="btn danger" data-act="reset-yes">Clear all</button></span></div>
+      </div>
+      <article class="report" id="report"></article>
+    </section>
+
+  </main>
+</div>
+
+<!-- Capture stage + task panel (moved into the active capture step) -->
+<template id="captureTpl">
+  <div class="stage" id="stage">
+    <div class="stage-head">
+      <h3 id="stTitle">—</h3>
+      <span class="badge" id="stView">front view</span>
+      <div class="seg" id="sideSeg"><button data-act="side" data-side="Right">Right</button><button data-act="side" data-side="Left">Left</button></div>
+    </div>
+    <div class="viewwrap">
+      <div class="viewport" id="viewport">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="placeholder" id="placeholder">
+          <p>Camera is off. Start it here, or load a video the patient recorded on their phone.</p>
+          <div class="row" style="justify-content:center">
+            <button class="btn primary" data-act="cam-start">Start camera</button>
+            <label class="btn" style="cursor:pointer">Load video<input type="file" accept="video/*" id="fileIn2" hidden></label>
+          </div>
+        </div>
+        <div class="hud" id="hud" hidden>
+          <div class="hud-top">
+            <div class="readout"><span class="lab" id="hudLab">Angle</span><span class="val" id="hudVal">–</span><span class="sub" id="hudSub"></span></div>
+            <div class="qual" id="hudQual"></div>
+          </div>
+          <div class="prompt" id="hudPrompt">Press Start when the patient is in position</div>
+        </div>
+        <div class="count" id="hudCount" hidden></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn primary" data-act="run-start" id="btnStart">Start test</button>
+      <button class="btn" data-act="run-stop" id="btnStop" disabled>Stop</button>
+      <button class="painbtn" data-act="pain" id="btnPain" disabled>Pain</button>
+      <span class="sp"></span>
+      <button class="btn" data-act="cam-switch" title="Use the other camera on a phone">Switch camera</button>
+      <label class="btn" style="cursor:pointer">Load video<input type="file" accept="video/*" id="fileIn" hidden></label>
+    </div>
+    <div class="result" id="stResult" hidden></div>
+  </div>
+  <div class="panel" id="taskPanel">
+    <div class="tasks" id="taskList"></div>
+    <div class="instr" id="taskInstr"></div>
+  </div>
+</template>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+/* ============================ constants ============================ */
+const MP_VER='0.10.14';
+const MP_URL=`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
+const MODEL_URLS={
+  lite:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  full:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+  heavy:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task'
+};
+const DEG=180/Math.PI;
+const STEPS=[['setup','Setup'],['posture','Posture'],['rom','Range of motion'],['tests','Special tests'],['prom','Questionnaires'],['clinician','Clinician entry'],['report','Report']];
+const STEP_TASKS={posture:['postureAnt','postureLat'],rom:['flex','abd','ext','er','hbh','hbb'],tests:['drop','can','rer','belly','h2m','hawk','neer','speed','yerg','bstretch','obrien','xbody']};
+const QS={
+  pain:{label:'Usual pain reproduced?',opts:['Yes','No','Unsure']},
+  weak:{label:'Felt weak or gave way?',opts:['Yes','No']},
+  eased:{label:'Pain eased with palm up?',opts:['Yes','No','No pain to begin with']},
+  wristFlex:{label:'Wrist had to bend to keep pressing?',opts:['Yes','No']}
+};
+
+const TASKS={
+  postureAnt:{id:'postureAnt',name:'Standing posture, front',short:'Posture front',type:'posture',kind:'postFront',view:'front',sided:false,
+    desc:'Shoulder height, head tilt and shift, pelvic level, trunk lean',
+    setup:['Camera 2–3 m away at chest height, upright and level (propped, not hand-held).','Whole body from head to feet in the frame.','Fitted top or vest, long hair tied back so ears and shoulders are visible.'],
+    action:['Stand facing the camera, feet hip-width apart, arms relaxed by your sides.','Look straight ahead and stay still for 3 seconds.']},
+  postureLat:{id:'postureLat',name:'Standing posture, side',short:'Posture side',type:'posture',kind:'postSide',view:'side',sided:false,
+    desc:'Head and shoulder position relative to the trunk, plumb-line offsets',
+    setup:['Same camera position as the front view.','Turn sideways so the affected shoulder is nearest the camera.','Whole body, head to feet, in the frame.'],
+    action:['Stand naturally, look straight ahead, arms relaxed.','Stay still for 3 seconds.']},
+  flex:{id:'flex',name:'Flexion',short:'Flexion',type:'rom',kind:'flex',view:'side',sided:true,ref:180,
+    desc:'Forward elevation, sagittal plane',
+    setup:['Turn sideways with the arm being tested nearest the camera.','Head to hips must be in the frame, with room above the head for the raised arm.'],
+    action:['Start with the arm relaxed by your side.','Keep the elbow straight, thumb pointing up.','Raise the arm forward and up as high as you can, then lower it.','Press Pain when pain starts and again when it stops.'],
+    move:'Raise your arm forward and up as high as you can, then lower it'},
+  abd:{id:'abd',name:'Abduction',short:'Abduction',type:'rom',kind:'abd',view:'front',sided:true,ref:180,
+    desc:'Elevation out to the side, coronal plane',
+    setup:['Face the camera, head to hips in the frame with room above the head.'],
+    action:['Start with the arm relaxed by your side.','Turn the palm forward, then raise the arm out to the side and up as high as you can.','Lower it slowly. Press Pain when pain starts and again when it stops.'],
+    move:'Raise your arm out to the side and up as high as you can, then lower it'},
+  ext:{id:'ext',name:'Extension',short:'Extension',type:'rom',kind:'ext',view:'side',sided:true,ref:60,
+    desc:'Arm backwards, sagittal plane',
+    setup:['Turn sideways with the arm being tested nearest the camera.'],
+    action:['Keep the elbow straight and the trunk upright.','Move the arm backwards as far as you comfortably can, then return.'],
+    move:'Move your straight arm backwards as far as you can, then return'},
+  er:{id:'er',name:'External rotation at side',short:'Ext. rotation',type:'rom',kind:'er',view:'front',sided:true,ref:90,estimate:true,
+    desc:'Estimated from body depth; approximate',
+    setup:['Face the camera, head to hips in the frame.','Good lighting helps the depth estimate.'],
+    action:['Tuck the elbow against your side and bend it to a right angle, forearm pointing at the camera.','Keep the elbow touching your side and rotate the forearm outward as far as you can.','Return to the start.'],
+    move:'Keep the elbow at your side and rotate the forearm outward, then back'},
+  drop:{id:'drop',name:'Drop arm (modified)',short:'Drop arm',type:'drop',kind:'elev',view:'front',sided:true,modified:true,
+    desc:'Control of lowering from 90° abduction',
+    setup:['Face the camera, head to hips in the frame.','Skip this test if the patient cannot lift the arm or it is very painful.'],
+    action:['Raise the arm out to the side to shoulder height and hold it there.','When prompted, lower it as slowly and smoothly as you can, taking about 5 seconds.'],
+    note:'The app measures time from 80° to 30° and the peak lowering speed. A sudden drop is flagged.'},
+  can:{id:'can',name:'Empty can hold (modified)',short:'Empty can',type:'hold',kind:'elev',view:'front',sided:true,modified:true,
+    desc:'30-second hold in scaption, thumb down, standard load',
+    setup:['Face the camera, head to hips in the frame.','Use a 1-litre water bottle (about 1 kg) only if the clinician agrees; otherwise no weight. Use the same load on both sides.'],
+    action:['Raise the straight arm to shoulder height, about 30° forward of straight out to the side.','Turn the thumb to point down.','Hold for up to 30 seconds. Stop at once if pain is sharp.'],
+    note:'Replaces manual resisted strength grading. The app times the hold and measures how far the arm drifts down.'},
+  hawk:{id:'hawk',name:'Hawkins-Kennedy (modified)',short:'Hawkins-K',type:'hawk',kind:'hawk',view:'side',sided:true,modified:true,
+    desc:'Position check, then internal rotation with pain report',
+    setup:['Turn sideways with the tested arm nearest the camera.','A helper can turn the forearm; otherwise let it drop slowly under its own weight.'],
+    action:['Raise the arm forward to shoulder height with the elbow bent to a right angle, forearm level.','When prompted, turn the forearm downwards into internal rotation.','Say whether this brings on the usual shoulder pain and where.'],
+    note:'The standard test is passive and examiner-performed. This version is self or helper-assisted and has no established diagnostic accuracy.'},
+
+  hbh:{id:'hbh',name:'Hand behind head',short:'Hand-behind-head',type:'reach',kind:'hbh',view:'front',sided:true,unit:'%',
+    desc:'Combined elevation and external rotation',
+    setup:['Face the camera, head to hips in the frame, room above the head.'],
+    action:['Start with the arm by your side.','Put the hand behind your head as if combing the back of your hair, elbow out to the side.','Hold a moment, then lower it.'],
+    move:'Put your hand behind your head, elbow out to the side, then lower it',questions:['pain','nprs']},
+  hbb:{id:'hbb',name:'Hand behind back',short:'Hand-behind-back',type:'reach',kind:'hbb',view:'back',sided:true,estimate:true,unit:'%',
+    desc:'Functional internal rotation, thumb height up the back',
+    setup:['Stand with your back to the camera, head to knees in the frame.','Fitted top, so hips and shoulders are clear.'],
+    action:['Put the back of the hand on your lower back, thumb up.','Slide the thumb up your spine as high as you can.','Hold a moment, then lower it.'],
+    move:'Slide your thumb up your back as high as you can, then lower it',
+    note:'The level is estimated from the wrist position between the hip and shoulder lines. Confirm the vertebral level visually and enter it on the clinician step.',questions:['pain','nprs']},
+
+  rer:{id:'rer',name:'Resisted external rotation (modified)',short:'Resisted ER',type:'pos',kind:'elbowSide',crit:'elbowSide',view:'front',sided:true,modified:true,unit:'°',
+    desc:'Isometric ER at the side, against a door frame or the other hand',
+    setup:['Face the camera, head to hips in the frame.','Stand beside a door frame, or use the other hand to resist.'],
+    action:['Elbow tucked at your side, bent to a right angle, thumb up.','Push the back of the hand outward against the door frame or your other hand for 5 seconds. The arm should not move.'],
+    posPrompt:'Elbow at your side, bent to a right angle',parts:[{prompt:'Push outward and hold',ms:5000}],
+    note:'Reported weakness here stands in for the infraspinatus strength test.',questions:['pain','loc','weak','nprs']},
+  belly:{id:'belly',name:'Belly press (modified)',short:'Belly press',type:'pos',kind:'belly',crit:'belly',view:'side',sided:true,modified:true,unit:'%',
+    desc:'Subscapularis; the camera checks whether the elbow falls back behind the trunk',
+    setup:['Turn sideways with the tested arm nearest the camera.','Head to hips in the frame.'],
+    action:['Put the flat hand on your belly, wrist straight.','Press the hand firmly into the belly and bring the elbow forward, keeping the wrist straight. Hold 5 seconds.'],
+    posPrompt:'Flat hand on your belly, wrist straight',parts:[{prompt:'Press into your belly, elbow forward, and hold',ms:5000}],
+    note:'Positive when the elbow drops back behind the line of the trunk, or the wrist has to bend to keep pressing.',questions:['weak','wristFlex','pain','nprs']},
+  h2m:{id:'h2m',name:'Hand to mouth (hornblower)',short:'Hand to mouth',type:'reach',kind:'h2m',view:'front',sided:true,unit:'°',
+    desc:'Teres minor / infraspinatus; how high the elbow lifts to reach the mouth',
+    setup:['Face the camera, head to hips in the frame.'],
+    action:['Start with the arm by your side.','Bring the hand to your mouth as if drinking from a glass.','Lower it again.'],
+    move:'Bring your hand to your mouth as if drinking, then lower it',
+    note:'A hornblower sign is when the elbow has to lift above shoulder height to bring the hand to the mouth.',questions:['pain','nprs']},
+  neer:{id:'neer',name:'Neer (modified, active)',short:'Neer',type:'rom',kind:'flex',view:'side',sided:true,modified:true,ref:180,
+    desc:'Forward elevation to end range with the arm turned in',
+    setup:['Turn sideways with the tested arm nearest the camera.'],
+    action:['Turn the arm in so the thumb points down.','Keep the elbow straight and raise the arm forward and up as high as you can.','Say whether this brings on the usual pain.'],
+    move:'Thumb down, raise your straight arm forward and up as high as you can',
+    note:'The standard Neer test uses passive examiner overpressure. This active version records range and pain reproduction only.',questions:['pain','loc','nprs']},
+  speed:{id:'speed',name:"Speed's (modified)",short:"Speed's",type:'pos',kind:'arm90',crit:'speed',view:'side',sided:true,modified:true,unit:'°',
+    desc:'Long head of biceps; loaded hold at 90° flexion, elbow straight, palm up',
+    setup:['Turn sideways with the tested arm nearest the camera.','Use the same water bottle as the empty can test.'],
+    action:['Hold the bottle with the palm facing up.','Raise the straight arm forward to shoulder height and hold 5 seconds.','Notice any pain at the front of the shoulder.'],
+    posPrompt:'Straight arm forward to shoulder height, palm up',parts:[{prompt:'Hold it there',ms:5000}],questions:['pain','loc','nprs']},
+  yerg:{id:'yerg',name:"Yergason's (modified)",short:"Yergason's",type:'pos',kind:'elbowSide',crit:'elbowSide',view:'front',sided:true,modified:true,unit:'°',
+    desc:'Biceps tendon in the groove; resisted supination at 90° elbow flexion',
+    setup:['Face the camera, head to hips in the frame.'],
+    action:['Elbow at your side, bent to a right angle, palm facing down.','Hold that wrist with your other hand.','Try to turn the palm up against your own resistance for 5 seconds.'],
+    posPrompt:'Elbow at your side, bent to a right angle, palm down',parts:[{prompt:'Turn your palm up against resistance and hold',ms:5000}],questions:['pain','loc','nprs']},
+  bstretch:{id:'bstretch',name:'Biceps stretch (modified)',short:'Biceps stretch',type:'rom',kind:'ext',view:'side',sided:true,modified:true,ref:60,
+    desc:'Shoulder extension with the elbow straight and palm turned down',
+    setup:['Turn sideways with the tested arm nearest the camera.'],
+    action:['Straighten the elbow and turn the palm to face backwards and down.','Move the straight arm backwards as far as you comfortably can.','Notice any pain or pulling at the front of the shoulder.'],
+    move:'Elbow straight, palm down, move your arm backwards as far as you can',questions:['pain','loc','nprs']},
+  obrien:{id:'obrien',name:"O'Brien's active compression (modified)",short:"O'Brien's",type:'pos',kind:'obrien',crit:'obrien',view:'front',sided:true,modified:true,unit:'%',
+    desc:'Labrum vs AC joint; pain thumb-down that eases palm-up',
+    setup:['Face the camera, head to hips in the frame.','Use the same water bottle as the other loaded tests.'],
+    action:['Raise the straight arm forward to shoulder height and bring it about 15° across your body.','Turn the thumb down and hold 5 seconds.','Then turn the palm up in the same position and hold 5 seconds.'],
+    posPrompt:'Straight arm forward to shoulder height, slightly across the body',parts:[{prompt:'Thumb down, hold',ms:5000},{prompt:'Now turn the palm up and hold',ms:5000}],
+    note:'Deep pain that eases palm-up points toward the labrum; pain on top of the shoulder points toward the AC joint.',questions:['pain','loc','eased','nprs']},
+  xbody:{id:'xbody',name:'Cross-body adduction',short:'Cross-body',type:'reach',kind:'xbody',view:'front',sided:true,unit:'%',
+    desc:'Horizontal adduction across the chest; pain on top of the shoulder',
+    setup:['Face the camera, head to hips in the frame.'],
+    action:['Raise the arm forward to shoulder height.','Bring it across your chest toward the opposite shoulder as far as you can. You may pull gently with the other hand.','Notice where any pain is felt.'],
+    move:'Arm to shoulder height, bring it across your chest as far as you can',questions:['pain','loc','nprs']}
+};
+const GROUPS={flex:'Planar range',abd:'Planar range',ext:'Planar range',er:'Planar range',hbh:'Functional reach',hbb:'Functional reach',
+  drop:'Rotator cuff',can:'Rotator cuff',rer:'Rotator cuff',belly:'Rotator cuff',h2m:'Rotator cuff',hawk:'Subacromial',neer:'Subacromial',
+  speed:'Biceps and labrum',yerg:'Biceps and labrum',bstretch:'Biceps and labrum',obrien:'Biceps and labrum',xbody:'AC joint'};
+Object.entries(GROUPS).forEach(([k,g])=>{TASKS[k].group=g;});
+const unitOf=T=>T.unit||'°';
+const CRIT={
+  elbowSide:{ok:m=>m.aux.elev<35&&m.aux.ef>=65&&m.aux.ef<=115,hint:m=>m.aux.elev>=35?'Bring the elbow in to your side':`Bend the elbow to a right angle (now ${r0(m.aux.ef)}°)`},
+  speed:{ok:m=>m.val>=70&&m.val<=115&&m.aux.ef<30,hint:m=>m.aux.ef>=30?'Straighten the elbow':m.val<70?'Raise the arm to shoulder height':'Lower the arm to shoulder height'},
+  belly:{ok:m=>m.aux.wo>3,hint:()=>'Bring the hand onto your belly, in front of the body'},
+  obrien:{ok:m=>Math.abs(m.aux.lvl)<40&&m.aux.cross>-35,hint:m=>Math.abs(m.aux.lvl)>=40?(m.aux.lvl<0?'Raise the hand to shoulder height':'Lower the hand to shoulder height'):'Bring the arm a little across your body'}
+};
+function hbbLevel(h){if(!fin(h))return'–';if(h<0)return'buttock';if(h<15)return'sacrum';if(h<30)return'L5–L3';if(h<45)return'L2–T12';if(h<60)return'T11–T8';return'T7 or higher';}
+const RED_FLAGS=[
+  ['cardiac','Shoulder or arm pain with chest pain, breathlessness, sweating or nausea',true],
+  ['trauma','Recent fall or injury with inability to lift the arm, or visible deformity'],
+  ['systemic','Fever, chills or feeling generally unwell'],
+  ['hot','Hot, red, swollen shoulder'],
+  ['cancer','History of cancer, or unexplained weight loss'],
+  ['neuro','Progressive weakness, numbness or tingling in the arm or hand'],
+  ['night','Severe constant pain, including at night, not eased by any position']
+];
+const SPADI=[
+  'At its worst?','When lying on the involved side?','Reaching for something on a high shelf?','Touching the back of your neck?','Pushing with the involved arm?',
+  'Washing your hair?','Washing your back?','Putting on an undershirt or jumper?','Putting on a shirt that buttons down the front?','Putting on your pants?','Placing an object on a high shelf?','Carrying a heavy object of 10 pounds (4.5 kg)?','Removing something from your back pocket?'
+];
+const HBB=['','Not assessed','Lateral thigh / buttock','Sacrum','L5','L3','L1','T12','T10','T8','T7 or higher'];
+const REFLEXES=[['biceps','Biceps (C5–6)'],['brachio','Brachioradialis (C6)'],['triceps','Triceps (C7)']];
+
+/* ============================ state ============================ */
+const KEY='orthoassess-shoulder-v1';
+const PENDING_KEY='orthoassess-shoulder-pending-v1';
+function fresh(){return{v:1,created:new Date().toISOString(),demo:false,
+  patient:{name:'',pid:'',age:'',sex:'',affected:'Right',dominant:'Right',complaint:'',onset:'',duration:''},
+  clinician:{name:'',reg:'',obs:'',hbbR:'',hbbL:'',scap:'na',reflex:{biceps:'na',brachio:'na',triceps:'na'},reflexHelper:false,sensation:'na',sensNote:'',cervical:'na',impression:'',plan:''},
+  consent:false,redFlags:{},results:{},prom:{rest:null,act:null,night:null,spadi:Array(13).fill(null),pga:null,asesPain:null,ases:Array(10).fill(null),psfs:[{act:'',score:null},{act:'',score:null},{act:'',score:null}]},
+  meta:{model:'full',voice:'on'}};}
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.v===1){const f=fresh();return {...f,...s,patient:{...f.patient,...s.patient},clinician:{...f.clinician,...s.clinician,reflex:{...f.clinician.reflex,...(s.clinician||{}).reflex}},prom:{...f.prom,...s.prom},meta:{...f.meta,...s.meta}};}}catch(e){}return fresh();}
+let saveT=0;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S));if(pending)sessionStorage.setItem(PENDING_KEY,JSON.stringify(pending));else sessionStorage.removeItem(PENDING_KEY);}catch(e){toast('Could not save securely; keep page open.');}},250);}
+let pending = (() => { try { return JSON.parse(sessionStorage.getItem(PENDING_KEY)); } catch(e) { return null; } })();
+
+/* ============================ helpers ============================ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fin=n=>typeof n==='number'&&isFinite(n);
+const r0=n=>fin(n)?String(Math.round(n)):'–';
+const r1=n=>fin(n)?(Math.round(n*10)/10).toFixed(1):'–';
+const median=a=>{const b=a.filter(fin).sort((x,y)=>x-y);if(!b.length)return NaN;const m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2;};
+const mean=a=>{const b=a.filter(fin);return b.length?b.reduce((x,y)=>x+y,0)/b.length:NaN;};
+const sd=a=>{const b=a.filter(fin);if(b.length<2)return NaN;const m=mean(b);return Math.sqrt(b.reduce((s,x)=>s+(x-m)**2,0)/(b.length-1));};
+const other=s=>s==='Right'?'Left':'Right';
+function getPath(p){if(p.startsWith('pending.'))return p.slice(8).split('.').reduce((o,k)=>o?.[k],pending);return p.split('.').reduce((o,k)=>o?.[k],S);}
+function setPath(p,v){let root=S;if(p.startsWith('pending.')){root=pending;p=p.slice(8);save();}const ks=p.split('.');let o=root;for(let i=0;i<ks.length-1;i++)o=o[ks[i]];o[ks[ks.length-1]]=v;if(root===S)save();}
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2600);}
+function speak(t){if(S.meta.voice==='off')return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=1.02;speechSynthesis.speak(u);}catch(e){}}
+function beep(){try{const a=beep.ctx||(beep.ctx=new (window.AudioContext||window.webkitAudioContext)());const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;g.gain.value=.08;o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+.12);}catch(e){}}
+
+/* ============================ geometry ============================ */
+let VW=1280,VH=720;
+function G(l){return i=>({x:l[i].x*VW,y:l[i].y*VH,v:l[i].visibility??0});}
+function IX(side){return side==='Right'?{sh:12,el:14,wr:16,hip:24,ear:8,kn:26,an:28}:{sh:11,el:13,wr:15,hip:23,ear:7,kn:25,an:27};}
+function visOf(l,ids){return Math.min(...ids.map(i=>l[i]?.visibility??0));}
+function ang(ax,ay,bx,by){const d=(ax*bx+ay*by)/((Math.hypot(ax,ay)*Math.hypot(bx,by))||1);return Math.acos(Math.max(-1,Math.min(1,d)))*DEG;}
+function elevation(g,ix){const s=g(ix.sh),e=g(ix.el),h=g(ix.hip);return ang(e.x-s.x,e.y-s.y,h.x-s.x,h.y-s.y);}
+function elbowFlex(g,ix){const s=g(ix.sh),e=g(ix.el),w=g(ix.wr);return 180-ang(s.x-e.x,s.y-e.y,w.x-e.x,w.y-e.y);}
+function facing(g,ix){const n=g(0),e=g(ix.ear);return Math.sign(n.x-e.x)||1;}
+function shWidth(g){const a=g(11),b=g(12);return Math.hypot(a.x-b.x,a.y-b.y);}
+function mid(a,b){return{x:(a.x+b.x)/2,y:(a.y+b.y)/2};}
+function trunkCoronal(g){const s=mid(g(11),g(12)),h=mid(g(23),g(24));return Math.atan2(s.x-h.x,h.y-s.y)*DEG;}
+function trunkSagittal(g,ix,f){const s=g(ix.sh),h=g(ix.hip);return Math.atan2((s.x-h.x)*f,h.y-s.y)*DEG;}
+function erFromWorld(w,side){
+  const L=w[11],R=w[12];let lx=R.x-L.x,lz=R.z-L.z;const n=Math.hypot(lx,lz)||1;lx/=n;lz/=n;
+  if(side==='Left'){lx=-lx;lz=-lz;}
+  let fx=-lz,fz=lx;if(fz>0){fx=-fx;fz=-fz;}
+  const ix=IX(side),e=w[ix.el],wr=w[ix.wr];const vx=wr.x-e.x,vz=wr.z-e.z;
+  return Math.atan2(vx*lx+vz*lz,vx*fx+vz*fz)*DEG;
+}
+
+function measure(T,l,wl,side){
+  if(!l)return{ok:false,why:'No person detected. Step into the frame.'};
+  const g=G(l),ix=side?IX(side):null;
+  const need=(ids,why)=>{const v=visOf(l,ids);return v<0.5?{ok:false,why,vis:v}:null;};
+  switch(T.kind){
+    case 'abd':case 'elev':{const bad=need([ix.sh,ix.el,ix.hip,11,12,23,24],'Keep both shoulders, the tested elbow and hips in view.');if(bad)return bad;
+      const sw=shWidth(g),s=g(ix.sh),ear=g(ix.ear);
+      return{ok:true,val:elevation(g,ix),vis:visOf(l,[ix.sh,ix.el,ix.hip]),aux:{hike:(s.y-ear.y)/sw,trunk:trunkCoronal(g)}};}
+    case 'flex':case 'ext':{const bad=need([ix.sh,ix.el,ix.hip],'Keep the tested shoulder, elbow and hip in view.');if(bad)return bad;
+      const f=facing(g,ix),s=g(ix.sh),e=g(ix.el),len=Math.hypot(e.x-s.x,e.y-s.y)||1;
+      const ant=(e.x-s.x)*f>-0.12*len;const el=elevation(g,ix);
+      const val=T.kind==='flex'?(ant?el:0):(ant?0:el);
+      return{ok:true,val,vis:visOf(l,[ix.sh,ix.el,ix.hip]),aux:{trunk:trunkSagittal(g,ix,f),ef:l[ix.wr].visibility>.4?elbowFlex(g,ix):NaN}};}
+    case 'elbowSide':{const bad=need([ix.sh,ix.el,ix.wr,ix.hip,11,12],'Keep both shoulders, the tested elbow and wrist in view.');if(bad)return bad;
+      const ef=elbowFlex(g,ix);return{ok:true,val:ef,vis:visOf(l,[ix.sh,ix.el,ix.wr]),aux:{elev:elevation(g,ix),ef}};}
+    case 'belly':{const bad=need([ix.sh,ix.el,ix.wr,ix.hip],'Keep the tested shoulder, elbow, wrist and hip in view.');if(bad)return bad;
+      const f=facing(g,ix),s=g(ix.sh),e=g(ix.el),w=g(ix.wr),h=g(ix.hip),tl=Math.hypot(s.x-h.x,s.y-h.y)||1;
+      const xl=y=>s.x+(h.x-s.x)*((y-s.y)/((h.y-s.y)||1));
+      const eo=(e.x-xl(e.y))*f/tl*100,wo=(w.x-xl(w.y))*f/tl*100;
+      return{ok:true,val:eo,vis:visOf(l,[ix.sh,ix.el,ix.wr,ix.hip]),aux:{eo,wo,ef:elbowFlex(g,ix)}};}
+    case 'h2m':{const bad=need([0,ix.sh,ix.el,ix.wr,ix.hip,11,12],'Keep the face, both shoulders and the tested arm in view.');if(bad)return bad;
+      const sw=shWidth(g)||1,n=g(0),w=g(ix.wr),d=Math.hypot(w.x-n.x,w.y-n.y)/sw,elev=elevation(g,ix);
+      return{ok:true,val:elev,score:-d,vis:visOf(l,[ix.sh,ix.el,ix.wr]),aux:{d,elev,reached:d<0.5}};}
+    case 'hbh':{const bad=need([0,ix.ear,ix.sh,ix.el,ix.wr,ix.hip,11,12],'Keep the head, both shoulders and the tested arm in view.');if(bad)return bad;
+      const sw=shWidth(g)||1,s=g(ix.sh),h=g(ix.hip),w=g(ix.wr),n=g(0),ear=g(ix.ear),tl=Math.hypot(s.x-h.x,s.y-h.y)||1;
+      const ht=(s.y-w.y)/tl*100,reached=w.y<ear.y&&Math.abs(w.x-n.x)<0.9*sw;
+      return{ok:true,val:ht,score:ht,vis:visOf(l,[ix.sh,ix.el,ix.wr]),aux:{ht,reached,elev:elevation(g,ix)}};}
+    case 'hbb':{const v=Math.min(visOf(l,[11,12,23,24]),l[ix.wr]?.visibility??0);if(v<0.35)return{ok:false,why:'Back to the camera with shoulders, hips and the tested hand visible.'};
+      const sM=mid(g(11),g(12)),hM=mid(g(23),g(24)),w=g(ix.wr),sw=shWidth(g)||1;
+      const h=(hM.y-w.y)/((hM.y-sM.y)||1)*100,reached=Math.abs(w.x-hM.x)<0.6*sw;
+      return{ok:true,val:h,score:h,vis:v,aux:{h,reached}};}
+    case 'xbody':case 'obrien':{const bad=need([11,12,ix.sh,ix.el,ix.wr,ix.hip],'Keep both shoulders and the tested arm in view.');if(bad)return bad;
+      const sw=shWidth(g)||1,s=g(ix.sh),w=g(ix.wr),o=g(ix.sh===12?11:12),dir=Math.sign(o.x-s.x)||1,mx=(g(11).x+g(12).x)/2;
+      const cross=(w.x-mx)*dir/sw*100,lvl=(s.y-w.y)/sw*100;
+      return{ok:true,val:T.kind==='xbody'?cross:cross,score:cross,vis:visOf(l,[ix.sh,ix.el,ix.wr]),aux:{cross,lvl,reached:Math.abs(lvl)<45}};}
+    case 'er':{const bad=need([ix.sh,ix.el,ix.wr,11,12],'Keep both shoulders and the tested forearm in view.');if(bad)return bad;
+      if(!wl)return{ok:false,why:'Depth data not available for this frame.'};
+      return{ok:true,val:erFromWorld(wl,side),vis:visOf(l,[ix.sh,ix.el,ix.wr]),aux:{elev:elevation(g,ix),ef:elbowFlex(g,ix)}};}
+    case 'hawk':case 'arm90':{const bad=need([ix.sh,ix.el,ix.wr,ix.hip],'Keep the tested shoulder, elbow, wrist and hip in view.');if(bad)return bad;
+      const e=g(ix.el),w=g(ix.wr);
+      return{ok:true,val:elevation(g,ix),vis:visOf(l,[ix.sh,ix.el,ix.wr]),aux:{ef:elbowFlex(g,ix),fa:Math.atan2(w.y-e.y,Math.abs(w.x-e.x))*DEG}};}
+    case 'postFront':{const bad=need([0,7,8,11,12,23,24],'Whole body facing the camera: face, both shoulders and hips must be visible.');if(bad)return bad;
+      const ls=g(11),rs=g(12),le=g(7),re=g(8),n=g(0),lh=g(23),rh=g(24),sw=shWidth(g);
+      return{ok:true,val:Math.atan2(rs.y-ls.y,Math.abs(ls.x-rs.x))*DEG,vis:visOf(l,[0,7,8,11,12,23,24]),aux:{
+        shTilt:Math.atan2(rs.y-ls.y,Math.abs(ls.x-rs.x))*DEG,
+        shDiff:(rs.y-ls.y)/sw*100,
+        headTilt:Math.atan2(re.y-le.y,Math.abs(le.x-re.x))*DEG,
+        headShift:-(n.x-(ls.x+rs.x)/2)/sw*100,
+        pelvis:Math.atan2(rh.y-lh.y,Math.abs(lh.x-rh.x))*DEG,
+        trunkLean:-trunkCoronal(g)}};}
+    case 'postSide':{const vr=visOf(l,[8,12,24,26,28]),vl=visOf(l,[7,11,23,25,27]);const sd_=vr>=vl?'Right':'Left',ix2=IX(sd_);
+      const bad=need([0,ix2.ear,ix2.sh,ix2.hip,ix2.kn,ix2.an],'Turn side-on with head, shoulder, hip, knee and ankle visible.');if(bad)return bad;
+      const f=facing(g,ix2),ear=g(ix2.ear),s=g(ix2.sh),h=g(ix2.hip),k=g(ix2.kn),a=g(ix2.an);
+      const tl=Math.hypot(s.x-h.x,s.y-h.y)||1,st=(a.y-ear.y)||1;
+      return{ok:true,val:Math.atan2(s.y-ear.y,(ear.x-s.x)*f)*DEG,vis:visOf(l,[ix2.ear,ix2.sh,ix2.hip,ix2.an]),aux:{
+        sideSeen:sd_==='Right'?1:0,
+        esa:Math.atan2(s.y-ear.y,(ear.x-s.x)*f)*DEG,
+        headFwd:(ear.x-s.x)*f/tl*100,
+        shFwd:(s.x-h.x)*f/tl*100,
+        trunkIncl:Math.atan2((s.x-h.x)*f,h.y-s.y)*DEG,
+        plEar:(ear.x-a.x)*f/st*100,plSh:(s.x-a.x)*f/st*100,plHip:(h.x-a.x)*f/st*100,plKnee:(k.x-a.x)*f/st*100}};}
+  }
+  return{ok:false,why:''};
+}
+
+/* ============================ camera + model ============================ */
+let landmarker=null,modelP=null,modelKey='';
+let video,overlay,octx,mirror=false,srcMode='none',stream=null,facingMode='user',raf=0,lastVT=-1,lastTs=0,fpsT=[],lastL=null,wakeLock=null;
+function setCam(text,state){$('#camStatus').textContent=text;$('#camDot').className='dot'+(state?' '+state:'');}
+async function initModel(){
+  if(landmarker&&modelKey===S.meta.model)return landmarker;
+  if(modelP)return modelP;
+  if(landmarker){try{landmarker.close();}catch(e){}landmarker=null;}
+  setCam('Loading pose model…','busy');
+  modelP=(async()=>{
+    const vision=await import(`${MP_URL}/vision_bundle.mjs`);
+    const fs=await vision.FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
+    const opt=d=>({baseOptions:{modelAssetPath:MODEL_URLS[S.meta.model]||MODEL_URLS.full,delegate:d},runningMode:'VIDEO',numPoses:1,minPoseDetectionConfidence:.5,minPosePresenceConfidence:.5,minTrackingConfidence:.5});
+    let lm;try{lm=await vision.PoseLandmarker.createFromOptions(fs,opt('GPU'));}catch(e){lm=await vision.PoseLandmarker.createFromOptions(fs,opt('CPU'));}
+    landmarker=lm;modelKey=S.meta.model;setCam(srcMode==='none'?'Model ready':'Analysing','on');return lm;
+  })();
+  try{return await modelP;}catch(e){setCam('Pose model failed to load','bad');toast('The pose model could not load. Check the internet connection and reload the page.');throw e;}finally{modelP=null;}
+}
+function camErr(e){const n=e&&e.name;if(n==='NotAllowedError')return'Camera permission was refused. Allow camera access in the browser settings and try again.';if(n==='NotFoundError')return'No camera was found on this device.';if(n==='NotReadableError')return'The camera is in use by another app (often the video-call app). Close it there or use a second device.';return'The camera could not start: '+(e&&e.message||n||'unknown error');}
+function stopStream(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
+async function startCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){toast('This browser cannot open the camera here. Use Chrome, Safari, Edge or Firefox over https.');return;}
+  ensureStage();stopStream();
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode,width:{ideal:1280},height:{ideal:720}},audio:false});}
+  catch(e){setCam('Camera blocked','bad');toast(camErr(e));return;}
+  const st=stream.getVideoTracks()[0].getSettings?.()||{};
+  mirror=(st.facingMode||facingMode)!=='environment';
+  video.removeAttribute('src');video.srcObject=stream;srcMode='live';
+  await videoReady();
+  await video.play().catch(e => { console.warn("Autoplay blocked or restricted:", e); toast("Autoplay policy restricted video play. Tap anywhere or press Start."); });
+  setCam('Camera on','on');reqWake();
+  if(curStep==='setup')toast('Camera on. Go to Posture to start measuring.');
+  initModel().then(startLoop).catch(()=>{});
+}
+async function loadFile(file){
+  if(!file)return;ensureStage();stopStream();
+  video.srcObject=null;video.src=URL.createObjectURL(file);video.loop=false;mirror=false;srcMode='file';
+  await videoReady();video.pause();video.currentTime=0;
+  setCam('Video loaded','on');toast('Video loaded. Press Start test to analyse it from the beginning.');
+  initModel().then(startLoop).catch(()=>{});
+}
+function videoReady(){return new Promise(res=>{const go=()=>{VW=video.videoWidth||1280;VH=video.videoHeight||720;overlay.width=VW;overlay.height=VH;
+  const vp=$('#viewport');vp.style.aspectRatio=`${VW}/${VH}`;vp.style.maxWidth=`calc(70vh * ${VW/VH})`;
+  video.style.transform=mirror?'scaleX(-1)':'none';$('#placeholder').hidden=true;$('#hud').hidden=false;res();};
+  if(video.readyState>=1&&video.videoWidth)go();else video.addEventListener('loadedmetadata',go,{once:true});});}
+async function reqWake(){try{wakeLock=await navigator.wakeLock?.request('screen');}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&srcMode==='live')reqWake();});
+function startLoop(){if(!raf)raf=requestAnimationFrame(loop);}
+function loop(){
+  raf=requestAnimationFrame(loop);
+  if(!landmarker||!video||video.readyState<2||!video.videoWidth)return;
+  if(video.currentTime===lastVT)return;lastVT=video.currentTime;
+  let ts=performance.now();if(ts<=lastTs)ts=lastTs+1;lastTs=ts;
+  let res;try{res=landmarker.detectForVideo(video,ts);}catch(e){return;}
+  fpsT.push(ts);while(fpsT.length&&ts-fpsT[0]>1000)fpsT.shift();
+  const l=res.landmarks?.[0]||null,wl=res.worldLandmarks?.[0]||null;lastL=l;
+  onFrame(l,wl,ts);
+}
+
+/* ============================ drawing ============================ */
+const BONES=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[7,0],[8,0]];
+function X(x){return mirror?VW-x:x;}
+function drawFrame(l,T,side,m){
+  const c=octx;c.clearRect(0,0,VW,VH);if(!l)return;
+  const g=G(l),u=Math.max(2,VW/400);
+  c.lineCap='round';
+  const hi=new Set();if(side&&T.sided){const ix=IX(side);hi.add(`${ix.sh}-${ix.el}`);hi.add(`${ix.el}-${ix.wr}`);}
+  for(const [a,b] of BONES){const p=g(a),q=g(b);if(p.v<.4||q.v<.4)continue;const h=hi.has(`${a}-${b}`)||hi.has(`${b}-${a}`);
+    c.strokeStyle='rgba(0,0,0,.55)';c.lineWidth=u*(h?3.4:2.4);c.beginPath();c.moveTo(X(p.x),p.y);c.lineTo(X(q.x),q.y);c.stroke();
+    c.strokeStyle=h?'#4fe0d6':'rgba(255,255,255,.85)';c.lineWidth=u*(h?2.2:1.3);c.beginPath();c.moveTo(X(p.x),p.y);c.lineTo(X(q.x),q.y);c.stroke();}
+  for(const i of [0,7,8,11,12,13,14,15,16,23,24,25,26,27,28]){const p=g(i);if(p.v<.4)continue;c.fillStyle='#fff';c.beginPath();c.arc(X(p.x),p.y,u*1.6,0,7);c.fill();}
+  if(T.type==='posture'){
+    c.setLineDash([u*4,u*3]);c.lineWidth=u*1.2;c.strokeStyle='#ffd166';
+    if(T.kind==='postFront'){for(const [a,b] of [[11,12],[7,8],[23,24]]){const p=g(a),q=g(b);c.beginPath();c.moveTo(X(p.x),p.y);c.lineTo(X(q.x),q.y);c.stroke();}
+      const n=g(0),an=mid(g(27),g(28));c.strokeStyle='rgba(255,209,102,.6)';c.beginPath();c.moveTo(X(an.x),0);c.lineTo(X(an.x),VH);c.stroke();}
+    else{const sd_=visOf(l,[8,12,24])>=visOf(l,[7,11,23])?'Right':'Left',ix=IX(sd_),a=g(ix.an);c.beginPath();c.moveTo(X(a.x),0);c.lineTo(X(a.x),VH);c.stroke();
+      const e=g(ix.ear),s=g(ix.sh);c.setLineDash([]);c.strokeStyle='#ffd166';c.lineWidth=u*2;c.beginPath();c.moveTo(X(s.x),s.y);c.lineTo(X(e.x),e.y);c.stroke();}
+    c.setLineDash([]);return;
+  }
+  if(side&&m&&m.ok&&!['er','hbb','hbh','xbody','obrien','belly','elbowSide'].includes(T.kind)){
+    const ix=IX(side),s=g(ix.sh),e=g(ix.el),h=g(ix.hip);
+    const a1=Math.atan2(h.y-s.y,X(h.x)-X(s.x)),a2=Math.atan2(e.y-s.y,X(e.x)-X(s.x));
+    let d=a2-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
+    const R=Math.min(Math.hypot(e.x-s.x,e.y-s.y)*.55,VH*.16);
+    c.fillStyle='rgba(79,224,214,.22)';c.strokeStyle='#4fe0d6';c.lineWidth=u*1.4;
+    c.beginPath();c.moveTo(X(s.x),s.y);c.arc(X(s.x),s.y,R,a1,a1+d,d<0);c.closePath();c.fill();c.stroke();
+    c.font=`600 ${Math.round(u*9)}px "JetBrains Mono",monospace`;c.fillStyle='#fff';c.strokeStyle='rgba(0,0,0,.7)';c.lineWidth=u*2.5;
+    const am=a1+d/2,tx=X(s.x)+Math.cos(am)*(R+u*14),ty=s.y+Math.sin(am)*(R+u*14),txt=`${Math.round(m.val)}°`;
+    c.textAlign='center';c.textBaseline='middle';c.strokeText(txt,tx,ty);c.fillText(txt,tx,ty);
+  }
+}
+function snapshot(){
+  const w=420,h=Math.round(w*VH/VW),cv=document.createElement('canvas');cv.width=w;cv.height=h;const c=cv.getContext('2d');
+  c.save();if(mirror){c.translate(w,0);c.scale(-1,1);}c.drawImage(video,0,0,w,h);c.restore();c.drawImage(overlay,0,0,w,h);
+  try{return cv.toDataURL('image/jpeg',.72);}catch(e){return null;}
+}
+
+/* ============================ test runner ============================ */
+let curStep='setup',curTask={posture:'postureAnt',rom:'flex',tests:'drop'},curSide=null,run=null;
+function task(){return TASKS[curTask[curStep]];}
+const FIRST={posture:'collect',rom:'base',drop:'raise',hold:'position',hawk:'position',reach:'move',pos:'position'};
+const PAIN_PHASES=['move','lower','hold','rotate','part'];
+function prompt(t,pain,alert=false){const p=$('#hudPrompt');if(p){p.textContent=t;p.classList.toggle('pain',!!pain);p.classList.toggle('alert',!!alert);}}
+function setPhase(p,now){run.phase=p;run.phaseT=now??performance.now();const T=run.T;
+  const P={collect:['Hold still…','Hold still'],
+    base:[T.kind==='er'?'Elbow at your side, bent 90°, forearm pointing forward':'Arm relaxed by your side','Arm relaxed by your side'],
+    move:[T.move,T.move],
+    raise:['Raise your arm out to the side to shoulder height','Raise your arm out to the side to shoulder height'],
+    lower:['Now lower it slowly — take about five seconds','Now lower it slowly, take about five seconds'],
+    position:T.posPrompt?[T.posPrompt,T.posPrompt]:[T.type==='hold'?'Arm to shoulder height, slightly forward, thumb down':'Arm forward to shoulder height, elbow bent to a right angle',T.type==='hold'?'Raise your arm to shoulder height, slightly forward, thumb pointing down':'Raise your arm forward to shoulder height, with the elbow bent to a right angle'],
+    hold:['Hold it there — keep it steady','Hold it there'],
+    rotate:['Now turn the forearm down slowly','Now turn the forearm down slowly']}[p];
+  if(P){prompt(P[0]);speak(P[1]);}
+  if(PAIN_PHASES.includes(p)){$('#btnPain').disabled=false;beep();}
+}
+function startPart(now){const r=run,i=r.parts.length,P=r.T.parts[i];r.parts.push({t0:now,vals:[],auxs:[],kept:0,n:0});r.phase='part';r.phaseT=now;
+  prompt(P.prompt);speak(P.prompt);beep();$('#btnPain').disabled=false;}
+function startRun(){
+  if(srcMode==='none'){toast('Start the camera or load a video first.');return;}
+  if(!landmarker){toast('The pose model is still loading.');return;}
+  if(!S.consent&&!S.demo){toast('Record patient consent in Setup before testing.');}
+  const T=task();const now=performance.now();
+  run={T,side:T.sided?curSide:null,phase:'count',phaseT:now,smooth:[],valid:0,invalid:0,visSum:0,series:[],base:[],metrics:[],peak:-Infinity,peakAux:null,peakT:0,pain:[],painOn:false,snap:null,lastSnap:0,maxRaise:0};
+  pending=null;save();$('#stResult').hidden=true;
+  if(srcMode==='file'){video.currentTime=0;video.play().catch(()=>{});setPhase(FIRST[T.type],now);}
+  else speak(T.sided?`${T.name}, ${curSide} side. Get ready.`:`${T.name}. Get ready.`);
+  $('#btnStart').disabled=true;$('#btnStop').disabled=false;
+}
+function stopRun(){if(run)finish();}
+function togglePain(){if(!run||!PAIN_PHASES.includes(run.phase))return;run.painOn=!run.painOn;
+  if(run.painOn)run.pain.push({on:run.sv,off:null});else{const last=run.pain[run.pain.length-1];if(last)last.off=run.sv;}
+  const b=$('#btnPain');b.classList.toggle('on',run.painOn);b.textContent=run.painOn?'Pain stopped':'Pain';
+  prompt(run.painOn?'Pain marked — press again when it stops':(run.T.move||'Continue'),run.painOn);}
+function onFrame(l,wl,now){
+  const T=task();if(!T){return;}
+  const side=T.sided?curSide:null;
+  const m=measure(T,l,wl,side);
+  drawFrame(l,T,side,m);
+  const fps=fpsT.length;$('#hudQual').innerHTML=`${fps} fps<br>${m.ok?'tracking '+Math.round((m.vis??0)*100)+'%':'<span style="color:#ffb4b4">not tracking</span>'}`;
+  if(!run){
+    if(T.type==='posture'){$('#hudLab').textContent='Live';$('#hudVal').textContent=m.ok?(T.kind==='postFront'?`${r1(m.aux.shTilt)}°`:`${r0(m.aux.esa)}°`):'–';$('#hudSub').textContent=T.kind==='postFront'?'shoulder line tilt':'ear–shoulder angle';}
+    else{$('#hudLab').textContent='Live';$('#hudVal').textContent=m.ok?`${r0(m.val)}${unitOf(T)}`:'–';$('#hudSub').textContent=T.type==='hawk'?`elbow ${m.ok?r0(m.aux.ef):'–'}°`:'';}
+    if(!m.ok&&m.why)prompt(m.why);else if(!$('#hudPrompt').classList.contains('pain'))prompt('Press Start test when ready');
+    return;
+  }
+  advance(m,now);
+}
+function advance(m,now){
+  const r=run,T=r.T;
+  if(r.phase==='count'){const rem=Math.ceil((3000-(now-r.phaseT))/1000);const c=$('#hudCount');
+    if(rem>0){c.hidden=false;if(c.textContent!==String(rem)){c.textContent=rem;}prompt('Get into position');return;}
+    c.hidden=true;setPhase(FIRST[T.type],now);return;}
+  if(!m.ok){r.invalid++;if(m.why)prompt(m.why);return;}
+  r.valid++;r.visSum+=m.vis??0;
+  r.smooth.push(m.val);if(r.smooth.length>5)r.smooth.shift();const sv=median(r.smooth);r.sv=sv;
+  const dt=now-r.phaseT;
+  $('#hudLab').textContent=T.type==='posture'?'Capturing':T.sided?`${r.side} ${T.short}`:T.short;
+  $('#hudVal').textContent=`${r0(sv)}${unitOf(T)}`;
+  const snapMaybe=()=>{if(now-r.lastSnap>150){r.snap=snapshot();r.lastSnap=now;}};
+  
+  // Real-time Dyskinesis / Compensation detection UX cue
+  if(T.type==='rom' && T.kind==='abd' && r.peakAux) {
+    if(r.peakAux.hike > 0.15) { prompt('⚠️ Dyskinesis / Shoulder hitching detected!', false, true); }
+  }
+
+  switch(T.type){
+    case 'posture':r.metrics.push(m.aux);$('#hudSub').textContent=`${Math.min(100,Math.round(dt/25))}%`;if(dt>2500){r.snap=snapshot();finish();}break;
+    case 'rom':
+      if(r.phase==='base'){r.base.push({val:sv,...m.aux});if(dt>800&&r.base.length>=5)setPhase('move',now);break;}
+      r.series.push([now,sv]);
+      if(sv>r.peak){r.peak=sv;r.peakAux=m.aux;r.peakT=now;snapMaybe();}
+      $('#hudSub').textContent=`peak ${r0(r.peak)}°`;
+      {const thr={flex:60,abd:60,ext:20,er:25}[T.kind];const back=T.kind==='er'?sv<r.peak-35:sv<r.peak*.4;
+       if(r.peak>thr&&back&&now-r.peakT>500)finish();else if(dt>20000)finish();}
+      break;
+    case 'drop':
+      if(r.phase==='raise'){r.maxRaise=Math.max(r.maxRaise,sv);$('#hudSub').textContent='target 80°+';
+        if(sv>=80){r.hiT??=now;if(now-r.hiT>800){r.reached=true;r.snap=snapshot();setPhase('lower',now);}}else r.hiT=null;
+        if(dt>15000)finish();break;}
+      r.series.push([now,sv]);$('#hudSub').textContent=`${r1(dt/1000)} s`;
+      if(sv<25||dt>12000)finish();break;
+    case 'hold':
+      if(r.phase==='position'){$('#hudSub').textContent='target 75–115°';
+        if(sv>=75&&sv<=115){r.inT??=now;if(now-r.inT>1000){r.reached=true;r.snap=snapshot();setPhase('hold',now);}}else r.inT=null;
+        if(dt>20000)finish();break;}
+      r.series.push([now,sv]);
+      if(r.ref==null&&dt>1000)r.ref=mean(r.series.map(x=>x[1]));
+      $('#hudSub').textContent=`${r1(dt/1000)} / 30 s`;
+      if(r.ref!=null){if(sv<r.ref-15||sv<55){r.lowT??=now;if(now-r.lowT>1000){r.failed=true;finish();break;}}else r.lowT=null;}
+      if(dt>=30000)finish();break;
+    case 'hawk':
+      if(r.phase==='position'){$('#hudSub').textContent=`elbow ${r0(m.aux.ef)}°`;
+        if(sv>=70&&sv<=115&&m.aux.ef>=60&&m.aux.ef<=120){r.inT??=now;if(now-r.inT>1000){r.reached=true;r.posElev=sv;r.posEf=m.aux.ef;setPhase('rotate',now);}}else r.inT=null;
+        if(dt>20000)finish();break;}
+      r.series.push([now,m.aux.fa]);if(!(m.aux.fa<=r.maxFa))r.maxFa=m.aux.fa,snapMaybe();
+      $('#hudSub').textContent=`forearm ${r0(m.aux.fa)}° below level`;
+      if(dt>6000)finish();break;
+    case 'reach':{
+      const sc=m.score;if(r.best==null||sc>r.best){r.best=sc;r.bestAux=m.aux;r.bestVal=sv;r.bestT=now;snapMaybe();}
+      if(m.aux.reached&&!r.reached){r.reached=true;r.reachT=now;}
+      $('#hudSub').textContent=T.kind==='h2m'?`elbow ${r0(m.aux.elev)}°`:T.kind==='hbb'?`≈ ${hbbLevel(r.best)}`:`best ${r0(T.kind==='h2m'?-r.best:r.best)}${unitOf(T)}`;
+      if((r.reached&&now-r.bestT>2500&&now-r.reachT>1500)||dt>12000)finish();
+      break;}
+    case 'pos':{
+      const C=CRIT[T.crit];
+      if(r.phase==='position'){if(C.ok(m)){r.inT??=now;prompt('Good, hold that position…');if(now-r.inT>1000){r.reached=true;r.base={...m.aux,val:sv};r.snap=snapshot();startPart(now);}}
+        else{r.inT=null;prompt(C.hint(m));}
+        if(dt>20000)finish();break;}
+      const P=r.parts[r.parts.length-1],spec=T.parts[r.parts.length-1];
+      P.vals.push(sv);P.auxs.push(m.aux);P.n++;if(C.ok(m))P.kept++;
+      $('#hudSub').textContent=`${r1((now-P.t0)/1000)} / ${spec.ms/1000} s`;
+      if(now-P.t0>=spec.ms){if(r.parts.length>=T.parts.length)finish();else startPart(now);}
+      break;}
+  }
+}
+function conf(r){const n=r.valid+r.invalid,ratio=n?r.valid/n:0,v=r.valid?r.visSum/r.valid:0;
+  const g=ratio>.9&&v>.75?'Good':ratio>.7&&v>.6?'Fair':'Poor';return{grade:g,ratio:Math.round(ratio*100),vis:Math.round(v*100),frames:r.valid};}
+function finish(){
+  const r=run;if(!r)return;run=null;
+  $('#hudCount').hidden=true;$('#btnStart').disabled=false;$('#btnStop').disabled=true;const pb=$('#btnPain');pb.disabled=true;pb.classList.remove('on');pb.textContent='Pain';
+  if(srcMode==='file')video.pause();
+  const T=r.T,c=conf(r),base={task:T.id,side:r.side,ts:Date.now(),conf:c,snap:r.snap,note:''};
+  if(r.painOn){const last=r.pain[r.pain.length-1];if(last&&last.off==null)last.off=null;}
+  let res;
+  if(T.type==='posture'){
+    const keys=Object.keys(r.metrics[0]||{});const med={},spread={};keys.forEach(k=>{med[k]=median(r.metrics.map(x=>x[k]));spread[k]=sd(r.metrics.map(x=>x[k]));});
+    res={...base,metrics:med,spread,ok:r.metrics.length>=15};
+  }else if(T.type==='rom'){
+    const bA=k=>median(r.base.map(b=>b[k]));const pa=r.peakAux||{};const comp=[];
+    if(T.kind==='abd'){const bh=bA('hike');if(bh>0&&fin(pa.hike)){const pct=(bh-pa.hike)/bh*100;if(pct>20)comp.push(`Shoulder hitching at end range (shoulder–ear distance reduced ${Math.round(pct)}%)`);}
+      const bt=bA('trunk');if(fin(bt)&&fin(pa.trunk)&&Math.abs(pa.trunk-bt)>8)comp.push(`Trunk side-bend ${Math.round(Math.abs(pa.trunk-bt))}°`);}
+    if(T.kind==='flex'){const bt=bA('trunk');if(fin(bt)&&fin(pa.trunk)&&pa.trunk-bt<-8)comp.push(`Trunk extension (leaning back) ${Math.round(bt-pa.trunk)}°`);}
+    if(T.kind==='ext'){const bt=bA('trunk');if(fin(bt)&&fin(pa.trunk)&&pa.trunk-bt>8)comp.push(`Trunk forward lean ${Math.round(pa.trunk-bt)}°`);}
+    if(T.kind==='er'){if(fin(pa.elev)&&pa.elev>30)comp.push(`Elbow moved away from the side (${Math.round(pa.elev)}°)`);if(fin(pa.ef)&&Math.abs(pa.ef-90)>25)comp.push(`Elbow flexion ${Math.round(pa.ef)}° (target 90°)`);}
+    res={...base,peak:fin(r.peak)?r.peak:NaN,start:bA('val'),arcs:r.pain.map(p=>({on:p.on,off:p.off})),comp,nprs:null,ok:fin(r.peak)&&r.series.length>5};
+  }else if(T.type==='drop'){
+    const s=r.series;let descent=NaN,vmax=NaN;
+    if(r.reached&&s.length>3){const t0=s[0][0];const i30=s.findIndex(x=>x[1]<=30);if(i30>0)descent=(s[i30][0]-t0)/1000;
+      vmax=0;let j=0;for(let i=0;i<s.length;i++){while(j<s.length&&s[j][0]-s[i][0]<120)j++;if(j>=s.length)break;const v=(s[i][1]-s[j][1])/((s[j][0]-s[i][0])/1000);if(v>vmax)vmax=v;}}
+    const uncontrolled=r.reached&&((fin(descent)&&descent<1.0)||(fin(vmax)&&vmax>150));
+    res={...base,reached:!!r.reached,maxRaise:r.maxRaise,descent,vmax,uncontrolled,nprs:null,ok:!!r.reached};
+  }else if(T.type==='hold'){
+    const s=r.series;let hold=0,meanA=NaN,drift=NaN,sdA=NaN;
+    if(r.reached&&s.length){hold=Math.min(30,(s[s.length-1][0]-s[0][0])/1000);meanA=mean(s.map(x=>x[1]));sdA=sd(s.map(x=>x[1]));
+      const tEnd=s[s.length-1][0],last=s.filter(x=>tEnd-x[0]<=1000).map(x=>x[1]);drift=(r.ref??s[0][1])-mean(last);}
+    res={...base,reached:!!r.reached,hold,meanA,drift,sdA,failed:!!r.failed,completed:!!r.reached&&!r.failed&&hold>=29.5,load:'1 L bottle (≈1 kg)',nprs:null,weak:false,ok:!!r.reached};
+  }else if(T.type==='hawk'){
+    res={...base,reached:!!r.reached,posElev:r.posElev,posEf:r.posEf,maxFa:r.maxFa,pain:'',loc:'',nprs:null,ok:!!r.reached};
+  }else if(T.type==='reach'){
+    res={...base,reached:!!r.reached,best:T.kind==='h2m'&&fin(r.best)?-r.best:r.best,bestAux:r.bestAux||{},nprs:null,ok:r.best!=null};
+  }else if(T.type==='pos'){
+    const parts=(r.parts||[]).map((P,i)=>({label:T.parts[i].prompt,secs:P.n?(P.auxs.length&&P.t0?Math.min(T.parts[i].ms/1000,(performance.now()-P.t0)/1000):0):0,mean:mean(P.vals),kept:P.n?Math.round(P.kept/P.n*100):0}));
+    const extra={};
+    if(T.kind==='belly'&&r.parts?.length){const eos=r.parts.flatMap(P=>P.auxs.map(a=>a.eo));extra.baseEo=r.base?.eo;extra.minEo=Math.min(...eos.filter(fin));extra.eDrop=fin(extra.baseEo)?extra.baseEo-extra.minEo:NaN;}
+    const done=r.parts?.length===T.parts.length;
+    res={...base,reached:!!r.reached,completed:!!r.reached&&done,parts,...extra,nprs:null,ok:!!r.reached};
+  }
+  (T.questions||[]).forEach(k=>{if(k!=='nprs'&&res[k]==null)res[k]='';});
+  res.arcs=res.arcs||r.pain.map(p=>({on:p.on,off:p.off}));
+  pending=res;save();renderResult();renderTaskPanel();speak('Done');prompt('Test complete. Review and save below.');
+}
+
+/* ============================ result card ============================ */
+function chipsHTML(path,cur,{na=false}={}){let h='<div class="chips">';for(let i=0;i<=10;i++)h+=`<button data-act="chip" data-path="${path}" data-val="${i}" class="${cur===i?'on':''}">${i}</button>`;
+  if(na)h+=`<button data-act="chip" data-path="${path}" data-val="na" class="na ${cur==='na'?'on':''}">N/A</button>`;return h+'</div>';}
+function arcText(arcs){if(!arcs||!arcs.length)return'None marked';return arcs.map(a=>`${r0(a.on)}°–${a.off==null?'end of test':r0(a.off)+'°'}`).join(', ');}
+function confFlag(c){return`<span class="flag ${c.grade==='Good'?'ok':c.grade==='Fair'?'warn':'bad'}">Tracking ${c.grade.toLowerCase()} · ${c.frames} frames</span>`;}
+
+/* Interactive Pain Map SVG Component rendering */
+function renderPainMapHTML(currentLoc){
+  const zones = [
+    { id: 'Front of shoulder (bicipital groove)', label: 'Anterior / Bicipital Groove', cx: 90, cy: 90, r: 22 },
+    { id: 'Anterolateral shoulder', label: 'Anterolateral / Rotator Cuff', cx: 140, cy: 75, r: 22 },
+    { id: 'Top of shoulder (AC joint)', label: 'Top / AC Joint', cx: 115, cy: 45, r: 18 },
+    { id: 'Posterior shoulder', label: 'Posterior / Scapular', cx: 60, cy: 95, r: 22 },
+    { id: 'Deep inside the shoulder', label: 'Deep Glenohumeral', cx: 110, cy: 95, r: 20 },
+    { id: 'Neck / upper trapezius', label: 'Neck / Upper Trap', cx: 115, cy: 15, r: 16 }
+  ];
+  return `
+    <label class="f">Interactive Pain Map (Tap zones to mark intensity / location)</label>
+    <div class="pain-map-container">
+      <svg viewBox="0 0 200 140" class="pain-map-svg" id="painMapSvg">
+        <!-- Human shoulder girdle outline proxy -->
+        <path d="M115,5 Q140,40 140,80 Q140,120 110,130 Q80,120 80,80 Q80,40 115,5 Z" fill="#e7eded" stroke="#d0dada" stroke-width="3" />
+        ${zones.map(z => {
+          const isSel = currentLoc === z.id;
+          return `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" class="pain-zone ${isSel ? 'selected' : ''}" data-zone="${esc(z.id)}" />
+                  <text x="${z.cx}" y="${z.cy+3}" font-size="8" text-anchor="middle" fill="${isSel ? '#fff' : 'var(--ink)'}" pointer-events="none">${z.id.split(' ')[0]}</text>`;
+        }).join('')}
+      </svg>
+      <div class="pain-legend"><span>Selected Zone: <b>${esc(currentLoc || 'None selected')}</b></span></div>
+    </div>
+  `;
+}
+
+function renderResult(){
+  const box=$('#stResult');if(!box)return;if(!pending){box.hidden=true;return;}box.hidden=false;
+  const p=pending,T=TASKS[p.task];let h=`<div class="row" style="justify-content:space-between"><h3>${esc(T.name)}${p.side?' · '+p.side:''}</h3>${confFlag(p.conf)}</div>`;
+  if(!p.ok)h+=`<div class="note warn">${T.type==='posture'?'Too few clear frames were captured.':T.type==='rom'?'Not enough movement was tracked.':'The start position was not reached, so the test is inconclusive.'} You can still save it, or repeat.</div>`;
+  if(T.type==='posture'){const m=p.metrics;h+='<div class="kv">'+postureRows(T.kind,m).map(x=>`<div><div class="k">${x[0]}</div><div class="v">${x[1]}</div></div>`).join('')+'</div>';}
+  if(T.type==='rom'){const pct=fin(p.peak)?Math.round(p.peak/T.ref*100):NaN;
+    h+=`<div class="kv"><div><div class="k">Peak ${T.estimate?'(estimate)':''}</div><div class="v">${r0(p.peak)}°</div></div><div><div class="k">Of reference ${T.ref}°</div><div class="v">${fin(pct)?pct+'%':'–'}</div></div><div><div class="k">Painful arc</div><div class="v" style="font-size:.9rem">${arcText(p.arcs)}</div></div></div>`;
+    h+=p.comp.length?`<div class="row">${p.comp.map(c=>`<span class="flag warn">${esc(c)}</span>`).join('')}</div>`:`<span class="flag ok">No compensation detected</span>`;
+    if(!T.questions)h+=`<label class="f">Pain at end of range (0–10)${chipsHTML('pending.nprs',p.nprs)}</label>`;}
+  if(T.type==='reach'){const a=p.bestAux||{};
+    const kv={h2m:[['Reached mouth',p.reached?'Yes':'No'],['Elbow elevation at mouth',`${r0(a.elev)}°`]],
+      hbh:[['Reached behind head',p.reached?'Yes':'No'],['Wrist above shoulder',`${r0(p.best)}% trunk`],['Arm elevation',`${r0(a.elev)}°`]],
+      hbb:[['Thumb height',`${r0(p.best)}% of trunk`],['Approx. level',hbbLevel(p.best)],['Hand at midline',p.reached?'Yes':'No']],
+      xbody:[['Hand past midline',`${r0(p.best)}% shoulder width`],['Hand at shoulder height',p.reached?'Yes':'No']]}[T.kind];
+    h+='<div class="kv">'+kv.map(x=>`<div><div class="k">${x[0]}</div><div class="v">${x[1]}</div></div>`).join('')+'</div>';
+    if(T.kind==='h2m')h+=!p.reached?'<span class="flag info">Hand did not reach the mouth</span>':a.elev>90?'<span class="flag bad">Elbow lifted above shoulder height (hornblower posture)</span>':'<span class="flag ok">Reached without lifting the elbow above the shoulder</span>';}
+  if(T.type==='pos'){
+    h+=`<div class="kv">${(p.parts||[]).map(P=>`<div><div class="k">${esc(P.label)}</div><div class="v">${r1(P.secs)} s · held ${P.kept}%</div></div>`).join('')}${T.kind==='belly'?`<div><div class="k">Elbow vs trunk line (start → lowest)</div><div class="v">${r0(p.baseEo)}% → ${r0(p.minEo)}%</div></div>`:''}</div>`;
+    h+=!p.reached?'<span class="flag info">Test position not confirmed by camera</span>':p.completed?'<span class="flag ok">Position confirmed and held</span>':'<span class="flag warn">Stopped before the hold finished</span>';
+    if(T.kind==='belly'&&fin(p.minEo)&&p.minEo<0)h+='<span class="flag bad">Elbow fell behind the trunk line</span>';}
+  if(T.questions)h+=qHTML(T,p);
+  if(T.type==='drop'){h+=`<div class="kv"><div><div class="k">Highest elevation</div><div class="v">${r0(p.maxRaise)}°</div></div><div><div class="k">Time 80°→30°</div><div class="v">${fin(p.descent)?r1(p.descent)+' s':'–'}</div></div><div><div class="k">Peak lowering speed</div><div class="v">${fin(p.vmax)?r0(p.vmax)+'°/s':'–'}</div></div></div>`;
+    h+=!p.reached?`<span class="flag info">Inconclusive: 80° not reached</span>`:p.uncontrolled?`<span class="flag bad">Uncontrolled / sudden lowering</span>`:`<span class="flag ok">Controlled lowering</span>`;
+    h+=`<label class="f">Pain while lowering (0–10)${chipsHTML('pending.nprs',p.nprs)}</label>`;}
+  if(T.type==='hold'){h+=`<div class="kv"><div><div class="k">Hold time</div><div class="v">${r1(p.hold)} s</div></div><div><div class="k">Mean elevation</div><div class="v">${r0(p.meanA)}°</div></div><div><div class="k">Downward drift</div><div class="v">${r0(p.drift)}°</div></div><div><div class="k">Steadiness (SD)</div><div class="v">${r1(p.sdA)}°</div></div></div>`;
+    h+=!p.reached?`<span class="flag info">Inconclusive: position not reached</span>`:p.completed?`<span class="flag ok">Held 30 s</span>`:`<span class="flag warn">Could not hold 30 s</span>`;
+    h+=`<div class="fields"><label class="f">Load used<select id="pend-load" data-bind="pending.load"><option>No weight</option><option>0.5 L bottle (≈0.5 kg)</option><option>1 L bottle (≈1 kg)</option><option>2 L bottle (≈2 kg)</option></select></label></div>
+       <label class="check"><input type="checkbox" id="pend-weak" data-bind="pending.weak"><span>Patient reports the arm felt weak</span></label>
+       <label class="f">Pain during hold (0–10)${chipsHTML('pending.nprs',p.nprs)}</label>`;}
+  if(T.type==='hawk'){h+=`<div class="kv"><div><div class="k">Position (flexion)</div><div class="v">${r0(p.posElev)}°</div></div><div><div class="k">Elbow flexion</div><div class="v">${r0(p.posEf)}°</div></div><div><div class="k">Forearm rotated down</div><div class="v">${r0(p.maxFa)}°</div></div></div>`;
+    h+=!p.reached?`<span class="flag info">Position not confirmed by camera</span>`:`<span class="flag ok">Position confirmed</span>`;
+    h+=`<div class="fields"><label class="f">Usual pain reproduced?<select id="pend-pain" data-bind="pending.pain"><option value="">—</option><option>Yes</option><option>No</option><option>Unsure</option></select></label></div>`;
+    h+=renderPainMapHTML(p.loc);
+    h+=`<label class="f">Pain intensity (0–10)${chipsHTML('pending.nprs',p.nprs)}</label>`;}
+  h+=`<label class="f">Note<input type="text" id="pend-note" data-bind="pending.note" placeholder="Optional"></label>`;
+  if(p.snap)h+=`<img src="${p.snap}" alt="Frame at peak" style="max-width:260px;border-radius:8px;border:1px solid var(--line)">`;
+  h+=`<div class="row"><button class="btn primary" data-act="res-save">Save result</button><button class="btn" data-act="res-redo">Repeat</button><button class="btn danger" data-act="res-discard">Discard</button></div>`;
+  box.innerHTML=h;bindAll(box);
+}
+
+function qHTML(T,p){
+  const sel=(T.questions||[]).filter(k=>k!=='nprs'&&k!=='loc').map(k=>`<label class="f">${QS[k].label}<select id="pend-${k}" data-bind="pending.${k}"><option value="">—</option>${QS[k].opts.map(o=>`<option>${esc(o)}</option>`).join('')}</select></label>`).join('');
+  let html = sel;
+  if((T.questions||[]).includes('loc')){
+    html += renderPainMapHTML(p.loc);
+  }
+  return(html?`<div class="fields">${html}</div>`:'')+((T.questions||[]).includes('nprs')?`<label class="f">Pain intensity (0–10)${chipsHTML('pending.nprs',p.nprs)}</label>`:'');
+}
+
+function isPos(id,r){
+  if(!r)return null;
+  switch(id){
+    case 'drop':return r.reached?!!r.uncontrolled:null;
+    case 'can':return r.reached?(!r.completed||(fin(r.nprs)&&r.nprs>=3)||!!r.weak):null;
+    case 'rer':return r.pain==='Yes'||r.weak==='Yes'?true:r.pain==='No'&&r.weak==='No'?false:null;
+    case 'belly':return r.reached?((fin(r.minEo)&&r.minEo<0)||r.weak==='Yes'||r.wristFlex==='Yes'):null;
+    case 'h2m':return r.reached?(r.bestAux?.elev>90):null;
+    case 'obrien':return r.pain==='Yes'?r.eased==='Yes':r.pain==='No'?false:null;
+    case 'hawk':case 'neer':case 'speed':case 'yerg':case 'bstretch':case 'xbody':return r.pain==='Yes'?true:r.pain==='No'?false:null;
+  }
+  return null;
+}
+function painfulArc(side){const x=S.results.abd?.[side];if(!x)return null;return(x.arcs||[]).some(a=>fin(a.on)&&a.on<=120&&(a.off==null?(x.peak??180):a.off)>=60);}
+function clusters(side){
+  const R=S.results;
+  const mich=[['Hawkins-Kennedy',isPos('hawk',R.hawk?.[side])],['Neer',isPos('neer',R.neer?.[side])],['Painful arc (60–120°)',painfulArc(side)],['Empty can',isPos('can',R.can?.[side])],['Resisted ER',isPos('rer',R.rer?.[side])]];
+  const er=R.rer?.[side];
+  const park=[['Painful arc (60–120°)',painfulArc(side)],['Drop arm',isPos('drop',R.drop?.[side])],['ER weakness',er?(er.weak==='Yes'?true:er.weak==='No'?false:null):null]];
+  const sum=a=>({pos:a.filter(x=>x[1]===true).length,known:a.filter(x=>x[1]!=null).length,items:a});
+  return{mich:sum(mich),park:sum(park)};
+}
+function ptText(r){return[r.pain?`Usual pain: ${r.pain}`:'',r.loc||'',r.eased?`Eased palm-up: ${r.eased}`:'',r.weak&&typeof r.weak==='string'?`Weak: ${r.weak}`:(r.weak===true?'Felt weak':''),r.wristFlex?`Wrist bent: ${r.wristFlex}`:'',fin(r.nprs)?`${r.nprs}/10`:''].filter(Boolean).join(' · ');}
+function camText(id,r){const T=TASKS[id],a=r.bestAux||{};
+  switch(T.type){
+    case 'drop':return`Max ${r0(r.maxRaise)}° · 80→30° in ${fin(r.descent)?r1(r.descent)+' s':'—'} · peak ${fin(r.vmax)?r0(r.vmax)+'°/s':'—'}`;
+    case 'hold':return`${r1(r.hold)} s · mean ${r0(r.meanA)}° · drift ${r0(r.drift)}° · SD ${r1(r.sdA)}° · ${r.load}`;
+    case 'hawk':return r.reached?`Position ${r0(r.posElev)}° flexion, elbow ${r0(r.posEf)}°, forearm down ${r0(r.maxFa)}°`:'Position not confirmed';
+    case 'rom':return`Peak ${r0(r.peak)}°${r.arcs?.length?' · pain '+arcText(r.arcs):''}${r.comp?.length?' · '+r.comp.join('; '):''}`;
+    case 'pos':return r.reached?(r.parts||[]).map(P=>`${P.label}: ${r1(P.secs)} s, position held ${P.kept}%`).join('; ')+(T.kind==='belly'?` · elbow vs trunk line ${r0(r.baseEo)}% → ${r0(r.minEo)}%`:''):'Position not confirmed';
+    case 'reach':return{h2m:`${r.reached?'Reached mouth':'Did not reach mouth'} · elbow elevation ${r0(a.elev)}°`,hbh:`${r.reached?'Reached behind head':'Not reached'} · wrist ${r0(r.best)}% of trunk above shoulder`,hbb:`Thumb ${r0(r.best)}% up the trunk (≈ ${hbbLevel(r.best)})`,xbody:`Hand ${r0(r.best)}% of shoulder width past midline`}[T.kind];
+  }return'';}
+function resText(id,r){const p=isPos(id,r);
+  if(id==='drop')return!r.reached?'Inconclusive (80° not reached)':r.uncontrolled?'Uncontrolled lowering':'Controlled lowering';
+  if(id==='can')return!r.reached?'Inconclusive (position not reached)':r.completed?(p?'Held 30 s, painful/weak':'Held 30 s'):'Did not complete 30 s';
+  if(id==='h2m')return!r.reached?'Did not reach mouth':p?'Hornblower posture':'Normal pattern';
+  if(id==='obrien'&&r.pain==='Yes')return r.eased==='Yes'?`Positive pattern${r.loc?` (${r.loc.toLowerCase()})`:''}`:'Pain not eased palm-up';
+  return p===true?'Positive as recorded':p===false?'Negative as recorded':'Not answered';}
+function postureRows(kind,m){
+  if(kind==='postFront'){return[
+    ['Shoulder line',fin(m.shTilt)?`${r1(Math.abs(m.shTilt))}° ${m.shTilt>0?'R low':'L low'}`:'–'],
+    ['Shoulder height diff.',fin(m.shDiff)?`${r1(Math.abs(m.shDiff))}% width`:'–'],
+    ['Head tilt',fin(m.headTilt)?`${r1(Math.abs(m.headTilt))}° to ${m.headTilt>0?'R':'L'}`:'–'],
+    ['Head shift',fin(m.headShift)?`${r1(Math.abs(m.headShift))}% to ${m.headShift>0?'R':'L'}`:'–'],
+    ['Pelvic level',fin(m.pelvis)?`${r1(Math.abs(m.pelvis))}° ${m.pelvis>0?'R low':'L low'}`:'–'],
+    ['Trunk lean',fin(m.trunkLean)?`${r1(Math.abs(m.trunkLean))}° to ${m.trunkLean>0?'R':'L'}`:'–']];}
+  return[
+    ['Ear–shoulder angle',`${r0(m.esa)}°`],['Head ahead of shoulder',`${r0(m.headFwd)}% trunk`],['Shoulder ahead of hip',`${r0(m.shFwd)}% trunk`],
+    ['Trunk inclination',`${r1(m.trunkIncl)}° ${m.trunkIncl>=0?'fwd':'back'}`],['Ear vs ankle line',`${r1(m.plEar)}% ht`],['Shoulder vs ankle line',`${r1(m.plSh)}% ht`]];
+}
+function saveResult(){const p=pending;if(!p)return;
+  if(TASKS[p.task].sided){S.results[p.task]=S.results[p.task]||{};S.results[p.task][p.side]=p;}else S.results[p.task]=p;
+  pending=null;save();renderResult();renderTaskPanel();renderRail();toast('Saved');
+  const T=TASKS[p.task];if(T.sided&&!S.results[p.task][other(p.side)]){setSide(other(p.side));toast(`Saved. Now test the ${other(p.side).toLowerCase()} side.`);}
+}
+
+/* ============================ capture panel ============================ */
+function ensureStage(){
+  if($('#stage'))return;
+  const frag=$('#captureTpl').content.cloneNode(true);$('#slot-posture').appendChild(frag);
+  video=$('#video');overlay=$('#overlay');octx=overlay.getContext('2d');
+  $('#fileIn').addEventListener('change',e=>loadFile(e.target.files[0]));
+  $('#fileIn2').addEventListener('change',e=>loadFile(e.target.files[0]));
+  video.addEventListener('ended',()=>{if(run)finish();});
+}
+function mountStage(step){ensureStage();const slot=$('#slot-'+step);if($('#stage').parentElement!==slot){slot.appendChild($('#stage'));slot.appendChild($('#taskPanel'));}}
+function setSide(s){curSide=s;$$('#sideSeg button').forEach(b=>b.classList.toggle('on',b.dataset.side===s));renderTaskPanel();}
+function statusPills(T){
+  const R=S.results[T.id];
+  const val=r=>{if(!r)return null;if(T.type==='rom')return`${r0(r.peak)}°`;if(T.type==='drop')return!r.reached?'inc.':r.uncontrolled?'drop':'ctrl';if(T.type==='hold')return`${r1(r.hold)}s`;
+    if(T.type==='reach'&&T.kind!=='h2m')return T.kind==='hbb'?hbbLevel(r.best):`${r0(r.best)}%`;
+    const p=isPos(T.id,r);return p===true?'+':p===false?'−':'done';};
+  const flagged=r=>r&&(isPos(T.id,r)===true||(T.type==='rom'&&(r.comp?.length||r.arcs?.length)));
+  if(!T.sided)return`<span class="pill ${R?'done':''}">${R?'captured':'to do'}</span>`;
+  return['Right','Left'].map(s=>{const r=R?.[s];return`<span class="pill ${r?(flagged(r)?'flagd':'done'):''}">${s[0]} ${val(r)??'–'}</span>`;}).join('');
+}
+function renderTaskPanel(){
+  if(!STEP_TASKS[curStep]||!$('#stage'))return;
+  const T=task();
+  $('#stTitle').textContent=T.name;$('#stView').textContent=T.view+' view';$('#sideSeg').hidden=!T.sided;
+  $$('#sideSeg button').forEach(b=>b.classList.toggle('on',b.dataset.side===curSide));
+  let lastG=null;
+  $('#taskList').innerHTML=STEP_TASKS[curStep].map(id=>{const t=TASKS[id];const gh=t.group&&t.group!==lastG?`<h4 class="eyebrow" style="margin-top:${lastG?'10px':'0'}">${esc(t.group)}</h4>`:'';lastG=t.group||lastG;return gh+`<button class="task ${id===T.id?'sel':''}" data-act="task" data-task="${id}"><span class="t">${esc(t.name)}</span><span class="st">${statusPills(t)}</span><span class="d">${esc(t.desc)} · ${t.view} view</span></button>`;}).join('');
+  $('#taskInstr').innerHTML=`<h4>Camera set-up</h4><ul>${T.setup.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><h4>Patient instructions</h4><ol>${T.action.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>${T.note?`<div class="note">${esc(T.note)}</div>`:''}${T.modified?'<div class="note warn">Modified remote version. Report wording reflects this.</div>':''}${T.estimate?'<div class="note warn">Rotation is estimated from the model\'s depth guess and is less accurate than the elevation measures. Use it for side-to-side comparison and change over time.</div>':''}`;
+}
+
+/* ============================ steps / nav ============================ */
+function stepDone(id){
+  if(id==='setup')return!!(S.patient.name&&S.consent);
+  if(id==='tests')return[...new Set(STEP_TASKS.tests.map(t=>TASKS[t].group))].every(g=>STEP_TASKS.tests.some(t=>TASKS[t].group===g&&S.results[t]));
+  if(STEP_TASKS[id])return STEP_TASKS[id].every(t=>{const r=S.results[t];return TASKS[t].sided?r&&r.Right&&r.Left:!!r;});
+  if(id==='prom')return S.prom.spadi.every(v=>v!==null);
+  if(id==='clinician')return!!S.clinician.impression;return false;
+}
+function renderRail(){$('#rail').innerHTML=STEPS.map(([id,n],i)=>`<button data-act="go" data-step="${id}" class="${id===curStep?'active':''}"><span class="n">${i+1}</span><span>${n}</span><span class="tick">${stepDone(id)?'done':''}</span></button>`).join('')+'<div class="rail-note">Measurements run on this device with MediaPipe Pose. Nothing is uploaded.</div>';
+  const p=S.patient;$('#ptChip').innerHTML=p.name?`<b>${esc(p.name)}</b>${p.age?`<span>${esc(p.age)} y</span>`:''}<span>${esc(p.affected)} affected</span>${S.demo?'<span class="flag warn">example</span>':''}`:'';}
+function go(step){
+  if(run)finish();
+  curStep=step;STEPS.forEach(([id])=>{$('#step-'+id).hidden=id!==step;});
+  if(STEP_TASKS[step]){mountStage(step);renderTaskPanel();renderResult();}
+  if(step==='prom')renderProm();if(step==='report')renderReport();
+  renderRail();window.scrollTo({top:0,behavior:'auto'});
+  try{history.replaceState(null,'','#'+step);}catch(e){}
+}
+
+/* ============================ binding ============================ */
+function bindAll(root=document){
+  root.querySelectorAll('[data-bind]').forEach(el=>{const v=getPath(el.dataset.bind);if(el.type==='checkbox')el.checked=!!v;else el.value=v??'';});
+}
+document.addEventListener('input',e=>{const el=e.target;if(!el.dataset?.bind)return;const v=el.type==='checkbox'?el.checked:el.value;setPath(el.dataset.bind,v);
+  if(el.dataset.bind.startsWith('patient')||el.dataset.bind==='consent')renderRail();});
+document.addEventListener('change',e=>{const el=e.target;if(el.dataset?.rf){S.redFlags[el.dataset.rf]=el.checked;save();renderRF();}});
+
+/* ============================ red flags ============================ */
+function renderRF(){
+  $('#redflags').innerHTML=RED_FLAGS.map(([k,t])=>`<label class="check"><input type="checkbox" id="rf-${k}" data-rf="${k}" ${S.redFlags[k]?'checked':''}><span>${esc(t)}</span></label>`).join('');
+  const any=RED_FLAGS.filter(([k])=>S.redFlags[k]);const box=$('#rfAlert');
+  if(!any.length){box.hidden=true;return;}box.hidden=false;
+  box.className='note bad';box.innerHTML=S.redFlags.cardiac?'<b>Possible cardiac cause.</b> Stop the assessment and advise the patient to seek emergency care now (in India, dial 112 or 108).':'<b>Red flag present.</b> Arrange in-person medical review before remote movement testing. The report will record this.';
+}
+
+/* ============================ PROMs ============================ */
+function renderProm(){
+  $('#nprsBlock').innerHTML=[['rest','At rest'],['act','With activity / reaching'],['night','At night']].map(([k,t])=>`<div class="q"><div class="qt">${t}</div>${chipsHTML('prom.'+k,S.prom[k])}<div class="anchors"><span>No pain</span><span>Worst imaginable</span></div></div>`).join('');
+  $('#spadiBlock').innerHTML='<h4 class="eyebrow" style="margin-top:4px">Pain scale — how severe is your pain…</h4>'+SPADI.slice(0,5).map((q,i)=>spadiQ(q,i)).join('')+'<h4 class="eyebrow" style="margin-top:14px">Disability scale — how much difficulty do you have…</h4>'+SPADI.slice(5).map((q,i)=>spadiQ(q,i+5)).join('');
+  renderSpadiScore();
+  $('#asesBlock').innerHTML=`<div class="q"><div class="qt"><b>P</b>How bad is your pain today?</div>${chipsHTML('prom.asesPain',S.prom.asesPain)}<div class="anchors"><span>No pain</span><span>Pain as bad as it can be</span></div></div>`+
+    '<h4 class="eyebrow" style="margin-top:10px">Ability to do the following with the affected arm</h4>'+ASES.map((q,i)=>`<div class="q"><div class="qt"><b>${i+1}</b>${esc(q)}</div>${chips4('prom.ases.'+i,S.prom.ases[i])}</div>`).join('');
+  $('#pgaBlock').innerHTML=`<div class="q"><div class="qt">Considering all the ways your shoulder affects you, how are you doing today?</div>${chipsHTML('prom.pga',S.prom.pga)}<div class="anchors"><span>Very well</span><span>Very poorly</span></div></div>`;
+  $('#psfsBlock').innerHTML='<h4 class="eyebrow" style="margin-top:10px">PSFS: activities you have difficulty with because of your shoulder</h4>'+S.prom.psfs.map((x,i)=>`<div class="q"><label class="f">Activity ${i+1}<input type="text" id="psfs-${i}" data-bind="prom.psfs.${i}.act" placeholder="${['e.g. hanging washing on the line','e.g. lifting a child','e.g. sleeping on that side'][i]}"></label>${chipsHTML('prom.psfs.'+i+'.score',x.score)}<div class="anchors"><span>Unable to perform</span><span>Able at pre-injury level</span></div></div>`).join('');
+  bindAll($('#psfsBlock'));renderAsesScore();
+}
+const ASES=['Put on a coat','Sleep on your painful or affected side','Wash your back / do up a bra in the back','Manage toileting','Comb your hair','Reach a high shelf','Lift 10 lb (4.5 kg) above shoulder level','Throw a ball overhand','Do your usual work','Do your usual sport'];
+const ASES_LAB=['Unable','Very difficult','Somewhat difficult','Not difficult'];
+function chips4(path,cur){return'<div class="chips">'+ASES_LAB.map((t,i)=>`<button data-act="chip" data-path="${path}" data-val="${i}" class="na ${cur===i?'on':''}">${i} · ${t}</button>`).join('')+'</div>';}
+function asesScores(){const a=S.prom.ases.filter(fin);const pain=S.prom.asesPain;
+  const painS=fin(pain)?(10-pain)*5:NaN,funcS=a.length>=8?a.reduce((s,x)=>s+x,0)/a.length*10*5/3:NaN;
+  return{pain:painS,func:funcS,total:fin(painS)&&fin(funcS)?painS+funcS:NaN,answered:a.length};}
+function renderAsesScore(){const s=asesScores();$('#asesScore').innerHTML=`<div><span class="v">${r0(s.pain)}</span><span class="k">Pain /50</span></div><div><span class="v">${r0(s.func)}</span><span class="k">Function /50</span></div><div><span class="v">${r0(s.total)}</span><span class="k">Total /100</span></div>`;}
+function psfsScore(){const v=S.prom.psfs.filter(x=>fin(x.score));return{mean:v.length?mean(v.map(x=>x.score)):NaN,items:v};}
+function spadiQ(q,i){return`<div class="q"><div class="qt"><b>${i+1}</b>${esc(q)}</div>${chipsHTML('prom.spadi.'+i,S.prom.spadi[i],{na:true})}<div class="anchors"><span>${i<5?'No pain':'No difficulty'}</span><span>${i<5?'Worst pain imaginable':'So difficult it requires help'}</span></div></div>`;}
+
+/* UPGRADED SPADI MATH: Clinically standard total score (average of pain % and disability %) */
+function spadiScores(){
+  const a=S.prom.spadi;
+  const sub=(from,to,maxMiss)=>{
+    const v=a.slice(from,to);
+    const ans=v.filter(x=>typeof x==='number');
+    const miss=v.length-ans.length;
+    return miss>maxMiss||!ans.length?NaN:ans.reduce((s,x)=>s+x,0)/(ans.length*10)*100;
+  };
+  const painS=sub(0,5,1);
+  const disS=sub(5,13,2);
+  const total=(fin(painS)&&fin(disS))?(painS+disS)/2:NaN;
+  const ansAll=a.filter(x=>typeof x==='number');
+  const missAll=13-ansAll.length;
+  return{pain:painS,dis:disS,total:total,answered:ansAll.length,na:a.filter(x=>x==='na').length};
+}
+function renderSpadiScore(){const s=spadiScores();$('#spadiScore').innerHTML=`<div><span class="v">${r0(s.pain)}</span><span class="k">Pain %</span></div><div><span class="v">${r0(s.dis)}</span><span class="k">Disability %</span></div><div><span class="v">${r0(s.total)}</span><span class="k">Total %</span></div>`;}
+
+/* ============================ report ============================ */
+function src(k){return{cam:'<span class="src cam">Camera</span>',pt:'<span class="src pt">Patient</span>',cl:'<span class="src cl">Clinician</span>',mod:'<span class="src mod">Modified</span>'}[k];}
+function findings(){
+  const F=[],aff=S.patient.affected,R=S.results;
+  const unaff=aff==='Right'?'Left':aff==='Left'?'Right':null;
+  for(const id of STEP_TASKS.rom){const T=TASKS[id],r=R[id];if(!r||T.type!=='rom')continue;
+    if(unaff&&r[aff]&&r[unaff]&&fin(r[aff].peak)&&fin(r[unaff].peak)){const d=r[unaff].peak-r[aff].peak;const pct=Math.round(r[aff].peak/r[unaff].peak*100);
+      if(Math.abs(d)>=10)F.push(`${T.name}${T.estimate?' (estimate)':''}: ${aff} ${r0(r[aff].peak)}° vs ${unaff} ${r0(r[unaff].peak)}° (${pct}% of the unaffected side).`);}
+    else for(const s of ['Right','Left']){const x=r[s];if(x&&fin(x.peak)&&x.peak<T.ref*.9)F.push(`${T.name} ${s}: ${r0(x.peak)}° (${Math.round(x.peak/T.ref*100)}% of reference ${T.ref}°).`);}
+    for(const s of ['Right','Left']){const x=r[s];if(!x)continue;if(x.arcs?.length)F.push(`Pain during ${s.toLowerCase()} ${T.name.toLowerCase()} from ${arcText(x.arcs)}${fin(x.nprs)?`, ${x.nprs}/10 at end range`:''}.`);
+      x.comp?.forEach(c=>F.push(`${s} ${T.name.toLowerCase()}: ${c.charAt(0).toLowerCase()+c.slice(1)}.`));}}
+  const pa=R.postureAnt?.metrics;if(pa){if(Math.abs(pa.shTilt)>=2)F.push(`Standing: ${pa.shTilt>0?'right':'left'} shoulder lower by ${r1(Math.abs(pa.shTilt))}°.`);
+    if(Math.abs(pa.headTilt)>=3)F.push(`Standing: head tilted ${r1(Math.abs(pa.headTilt))}° to the ${pa.headTilt>0?'right':'left'}.`);
+    if(Math.abs(pa.trunkLean)>=2)F.push(`Standing: trunk leans ${r1(Math.abs(pa.trunkLean))}° to the ${pa.trunkLean>0?'right':'left'}.`);}
+  const pl=R.postureLat?.metrics;if(pl){if(pl.headFwd>=15)F.push(`Side view: head sits ${r0(pl.headFwd)}% of trunk length ahead of the shoulder (forward head position).`);
+    if(pl.shFwd>=10)F.push(`Side view: shoulder sits ${r0(pl.shFwd)}% of trunk length ahead of the hip (protracted or forward shoulder position).`);}
+  for(const s of ['Right','Left']){const b=R.hbb?.[s];if(b)F.push(`Hand behind back, ${s.toLowerCase()}: thumb to about ${hbbLevel(b.best)} (estimate).`);}
+  if(R.hbb?.Right&&R.hbb?.Left&&fin(R.hbb.Right.best)&&fin(R.hbb.Left.best)&&Math.abs(R.hbb.Right.best-R.hbb.Left.best)>=10)F.push(`Hand behind back differs between sides by ${r0(Math.abs(R.hbb.Right.best-R.hbb.Left.best))}% of trunk length.`);
+  for(const s of ['Right','Left']){const x=R.hbh?.[s];if(x&&!x.reached)F.push(`Hand behind head, ${s.toLowerCase()}: could not reach behind the head.`);}
+  for(const id of STEP_TASKS.tests){const T=TASKS[id];for(const s of ['Right','Left']){const r=R[id]?.[s];if(!r)continue;
+    if(id==='can'){if(r.reached&&isPos(id,r))F.push(`Modified empty can hold, ${s.toLowerCase()}: ${r.completed?'held 30 s':`held ${r1(r.hold)} s`} with ${r.load}, drift ${r0(r.drift)}°${fin(r.nprs)?`, pain ${r.nprs}/10`:''}${r.weak?', reported weakness':''}.`);continue;}
+    if(id==='drop'){if(isPos(id,r))F.push(`Modified drop arm, ${s.toLowerCase()}: uncontrolled lowering (80°→30° in ${r1(r.descent)} s, peak ${r0(r.vmax)}°/s).`);continue;}
+    if(isPos(id,r)===true){const pt=ptText(r);F.push(`${T.name}, ${s.toLowerCase()}: ${resText(id,r).toLowerCase()}${pt?` (${pt})`:''}.`);}}}
+  const sides=aff==='Both'?['Right','Left']:[aff];
+  for(const s of sides){const c=clusters(s);if(c.mich.known>=3)F.push(`Subacromial pain cluster (Michener), ${s.toLowerCase()}: ${c.mich.pos} of ${c.mich.known} recorded tests positive${c.mich.known<5?' (incomplete)':''}.`);
+    if(c.park.known>=2)F.push(`Full-thickness cuff tear cluster (Park), ${s.toLowerCase()}: ${c.park.pos} of ${c.park.known} recorded tests positive${c.park.known<3?' (incomplete)':''}.`);}
+  const sp=spadiScores();if(fin(sp.total))F.push(`SPADI total ${r0(sp.total)}% (pain ${r0(sp.pain)}%, disability ${r0(sp.dis)}%).`);
+  const as=asesScores();if(fin(as.total))F.push(`ASES ${r0(as.total)}/100 (pain ${r0(as.pain)}/50, function ${r0(as.func)}/50).`);
+  if(fin(S.prom.pga))F.push(`Patient global: ${S.prom.pga}/10 (0 = very well, 10 = very poorly).`);
+  return F;
+}
+function renderReport(){
+  const p=S.patient,c=S.clinician,R=S.results,aff=p.affected,unaff=aff==='Right'?'Left':aff==='Left'?'Right':null;
+  const dt=new Date(S.created);const rf=RED_FLAGS.filter(([k])=>S.redFlags[k]);
+  let h='';
+  if(S.demo)h+='<div class="demo-banner">EXAMPLE DATA · NOT A REAL PATIENT</div>';
+  h+=`<div class="rhead"><div><p class="eyebrow">Virtual objective assessment</p><h2>Shoulder &amp; Posture Assessment Report</h2></div><div class="mono muted" style="font-size:.8rem">${dt.toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'})} · ${dt.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  h+=`<div class="rmeta">${[['Patient',p.name||'—'],['ID',p.pid||'—'],['Age / sex',`${p.age||'—'} / ${p.sex||'—'}`],['Affected side',aff],['Dominant hand',p.dominant],['Onset / duration',`${p.onset||'—'}${p.duration?` · ${p.duration} wk`:''}`],['Clinician',c.name||'—'],['Mode','Video consult, patient-performed, camera-measured']].map(([k,v])=>`<div><div class="k">${k}</div><div>${esc(v)}</div></div>`).join('')}</div>`;
+  if(p.complaint)h+=`<p><b>Presenting complaint:</b> ${esc(p.complaint)}</p>`;
+  if(rf.length)h+=`<div class="redbox"><b>Red flags recorded:</b> ${rf.map(x=>esc(x[1])).join('; ')}. In-person medical review indicated.</div>`;
+  if(!S.consent)h+='<div class="note warn">Patient consent for camera analysis was not recorded.</div>';
+
+  const F=findings();
+  h+=`<section><h3>Key measured findings</h3>${F.length?`<ul class="findings">${F.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:'<p class="muted">No measured findings above the reporting thresholds, or no tests recorded yet.</p>'}<p class="fine" style="margin-top:6px">Factual statements generated from measurements and patient reports. They are not a diagnosis; see the clinician's impression below.</p></section>`;
+
+  const pa=R.postureAnt,pl=R.postureLat;
+  h+='<section><h3>Standing posture</h3>';
+  if(pa||pl){h+='<div class="tbl"><table><thead><tr><th>View</th><th>Measure</th><th>Value</th><th>Day-to-day variation</th><th>Source</th></tr></thead><tbody>';
+    if(pa){const rows=postureRows('postFront',pa.metrics),keys=['shTilt','shDiff','headTilt','headShift','pelvis','trunkLean'];rows.forEach((x,i)=>{h+=`<tr><td>${i?'':'Front'}</td><td>${x[0]}</td><td class="n">${x[1]}</td><td class="n">±${r1(pa.spread?.[keys[i]])}</td><td>${i?'':src('cam')}</td></tr>`;});}
+    if(pl){const rows=postureRows('postSide',pl.metrics),keys=['esa','headFwd','shFwd','trunkIncl','plEar','plSh'];rows.forEach((x,i)=>{h+=`<tr><td>${i?'':`Side (${pl.metrics.sideSeen?'right':'left'})`}</td><td>${x[0]}</td><td class="n">${x[1]}</td><td class="n">±${r1(pl.spread?.[keys[i]])}</td><td>${i?'':src('cam')}</td></tr>`;});}
+    h+='</tbody></table></div>';}
+  else h+='<p class="muted">Not captured.</p>';
+  h+='</section>';
+
+  h+='<section><h3>Active range of motion</h3><div class="tbl"><table><thead><tr><th>Movement</th><th>Right</th><th>Left</th><th>Reference</th><th>Side difference</th><th>Painful arc</th><th>Compensation</th><th>Tracking</th></tr></thead><tbody>';
+  for(const id of STEP_TASKS.rom){const T=TASKS[id],r=R[id]||{},a=r.Right,b=r.Left;if(T.type!=='rom')continue;
+    const diff=a&&b&&fin(a.peak)&&fin(b.peak)?Math.abs(a.peak-b.peak):NaN;const pct=unaff&&r[aff]&&r[unaff]&&fin(r[aff].peak)&&fin(r[unaff].peak)?Math.round(r[aff].peak/r[unaff].peak*100):NaN;
+    const cell=x=>x?`${r0(x.peak)}°${fin(x.nprs)?` <span class="muted">(${x.nprs}/10)</span>`:''}`:'—';
+    h+=`<tr><td>${T.name}${T.estimate?' <span class="src mod">Estimate</span>':''}</td><td class="n">${cell(a)}</td><td class="n">${cell(b)}</td><td class="n">${T.ref}°</td><td class="n">${fin(diff)?r0(diff)+'°':'—'}${fin(pct)?` · ${aff[0]} ${pct}%`:''}</td><td>${[a&&a.arcs?.length?'R '+arcText(a.arcs):'',b&&b.arcs?.length?'L '+arcText(b.arcs):''].filter(Boolean).join('<br>')||'—'}</td><td>${[...(a?.comp||[]).map(x=>'R: '+esc(x)),...(b?.comp||[]).map(x=>'L: '+esc(x))].join('<br>')||'—'}</td><td>${[a?'R '+a.conf.grade:'',b?'L '+b.conf.grade:''].filter(Boolean).join(', ')||'—'}</td></tr>`;}
+  h+=`</tbody></table></div></section>`;
+
+  {const rows=['hbh','hbb'].flatMap(id=>['Right','Left'].map(s=>[id,s,R[id]?.[s]])).filter(x=>x[2]);
+   h+='<section><h3>Functional reach</h3>';
+   h+=rows.length?`<div class="tbl"><table><thead><tr><th>Movement</th><th>Side</th><th>Camera measurement</th><th>Patient report</th></tr></thead><tbody>${rows.map(([id,s,r])=>`<tr><td>${TASKS[id].name}</td><td>${s}</td><td class="n">${esc(camText(id,r))}</td><td>${esc(ptText(r))||'—'}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Not captured.</p>';
+   h+='</section>';}
+
+  h+='<section><h3>Camera-assisted modified tests</h3><div class="tbl"><table><thead><tr><th>Test</th><th>Side</th><th>Camera measurement</th><th>Patient report</th><th>Result as recorded</th></tr></thead><tbody>';
+  let any=false,lastG='';
+  for(const id of STEP_TASKS.tests){const T=TASKS[id];for(const s of ['Right','Left']){const r=R[id]?.[s];if(!r)continue;any=true;
+    if(T.group!==lastG){h+=`<tr><th colspan="5" style="padding-top:12px">${esc(T.group)}</th></tr>`;lastG=T.group;}
+    const p=isPos(id,r);
+    h+=`<tr><td>${esc(T.name)}</td><td>${s}</td><td class="n" style="white-space:normal">${esc(camText(id,r))}</td><td>${esc(ptText(r))||'—'}</td><td>${p===true?`<span class="flag warn">${esc(resText(id,r))}</span>`:esc(resText(id,r))}</td></tr>`;}}
+  if(!any)h+='<tr><td colspan="5" class="muted">No tests recorded.</td></tr>';
+  h+='</tbody></table></div></section>';
+
+  const sp=spadiScores(),as=asesScores(),ps=psfsScore();
+  h+=`<section><h3>Patient-reported outcomes</h3><div class="tbl"><table><thead><tr><th>Measure</th><th>Score</th><th>Direction</th><th>Source</th></tr></thead><tbody>
+   <tr><td>SPADI total (Pain/Disability Avg)</td><td class="n">${r0(sp.total)}% (Pain ${r0(sp.pain)}%, Dis ${r0(sp.dis)}%)</td><td>lower is better</td><td>${src('pt')}</td></tr>
+   <tr><td>ASES (pain / function / total)</td><td class="n">${r0(as.pain)} / ${r0(as.func)} / ${r0(as.total)}</td><td>higher is better</td><td>${src('pt')}</td></tr>
+   <tr><td>Patient global assessment</td><td class="n">${fin(S.prom.pga)?S.prom.pga+'/10':'—'}</td><td>lower is better</td><td>${src('pt')}</td></tr>
+  </tbody></table></div></section>`;
+
+  h+=`<section><h3>Clinical impression and plan</h3><p><b>Impression (clinician):</b> ${esc(c.impression)||'—'}</p><p style="margin-top:6px"><b>Plan:</b> ${esc(c.plan)||'—'}</p></section>`;
+  h+=`<div class="sig"><div>Clinician: ${esc(c.name)||'&nbsp;'}</div><div>Registration: ${esc(c.reg)||'&nbsp;'}</div><div>Signature &amp; date</div></div>`;
+  $('#report').innerHTML=h;
+}
+function summaryText(){const p=S.patient;const F=findings();return`Shoulder & posture virtual assessment — ${p.name||'patient'} (${p.affected} affected), ${new Date(S.created).toLocaleDateString()}\n\n`+(F.length?F.map(f=>'• '+f).join('\n'):'No measured findings above thresholds.')+`\n\nImpression: ${S.clinician.impression||'—'}\nPlan: ${S.clinician.plan||'—'}`;}
+
+/* ============================ demo ============================ */
+function demo(){
+  const now=Date.now(),cf=(g='Good')=>({grade:g,ratio:96,vis:88,frames:180});
+  S=fresh();S.demo=true;S.consent=true;
+  S.patient={name:'Example Patient',pid:'DEMO-0001',age:'52',sex:'Female',affected:'Right',dominant:'Right',complaint:'Right shoulder pain reaching overhead and sleeping on that side, 8 weeks',onset:'Insidious',duration:'8'};
+  S.clinician={...S.clinician,name:'Dr. Example PT',reg:'EX-123',obs:'Mild upper trapezius prominence on the right.',impression:'Example findings.',plan:'Begin graded loading programme.'};
+  const rom=(peak,extra={})=>({task:'',side:'',ts:now,conf:cf(),snap:null,note:'',peak,start:10,arcs:[],comp:[],nprs:null,ok:true,...extra});
+  S.results.flex={Right:rom(138,{task:'flex',side:'Right',arcs:[{on:96,off:null}],nprs:6}),Left:rom(172,{task:'flex',side:'Left',nprs:0})};
+  S.results.abd={Right:rom(118,{task:'abd',side:'Right',arcs:[{on:72,off:115}],nprs:7}),Left:rom(169,{task:'abd',side:'Left',nprs:0})};
+  S.prom={rest:2,act:7,night:6,spadi:[8,7,7,5,4,6,6,4,3,2,7,6,5],pga:6,asesPain:5,ases:[2,0,1,3,2,1,1,0,2,1],
+    psfs:[{act:'Hanging washing on the line',score:4},{act:'Sleeping on the right side',score:2},{act:'Lifting a pressure cooker',score:3}]};
+  save();bindAll();renderRF();renderRail();toast('Example data loaded. Open report.');
+}
+
+/* ============================ actions ============================ */
+const ACT={
+  go:a=>go(a.dataset.step),
+  theme:()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.dataset.theme=dark?'light':'dark';},
+  'cam-start':()=>startCamera(),
+  'cam-switch':()=>{facingMode=facingMode==='user'?'environment':'user';startCamera();},
+  demo:()=>demo(),
+  task:a=>{if(run)finish();curTask[curStep]=a.dataset.task;pending=null;save();renderResult();renderTaskPanel();},
+  side:a=>{if(run)finish();setSide(a.dataset.side);},
+  'run-start':()=>startRun(),'run-stop':()=>stopRun(),pain:()=>togglePain(),
+  chip:a=>{const v=a.dataset.val==='na'?'na':+a.dataset.val;const path=a.dataset.path;const cur=getPath(path);setPath(path,cur===v?null:v);
+    a.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on',getPath(path)===(b.dataset.val==='na'?'na':+b.dataset.val)));
+    if(path.startsWith('prom.spadi'))renderSpadiScore();if(path.startsWith('prom.ases'))renderAsesScore();if(path.startsWith('prom'))renderRail();},
+  'res-save':()=>saveResult(),'res-redo':()=>{pending=null;save();renderResult();startRun();},'res-discard':()=>{pending=null;save();renderResult();},
+  print:()=>{renderReport();window.print();},
+  json:()=>{const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=`orthoassess-${(S.patient.pid||S.patient.name||'session').replace(/\W+/g,'_')}-${S.created.slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);},
+  copy:async()=>{const t=summaryText();try{await navigator.clipboard.writeText(t);toast('Summary copied');}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Summary copied');}catch(_){}ta.remove();}},
+  'reset-ask':()=>{$('#resetConfirm').hidden=false;},'reset-no':()=>{$('#resetConfirm').hidden=true;},
+  'reset-yes':()=>{S=fresh();pending=null;save();$('#resetConfirm').hidden=true;bindAll();renderRF();go('setup');toast('New session started');}
+};
+
+document.addEventListener('click',e=>{
+  const zoneEl = e.target.closest('.pain-zone');
+  if(zoneEl){
+    const zoneName = zoneEl.dataset.zone;
+    if(pending){
+      pending.loc = zoneName;
+      save();
+      renderResult();
+      toast('Pain zone marked: '+zoneName);
+    }
+    return;
+  }
+  const a=e.target.closest('[data-act]');if(!a)return;const f=ACT[a.dataset.act];if(f){e.preventDefault();f(a,e);}
+});
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&run&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)){e.preventDefault();togglePain();}});
+document.addEventListener('input',e=>{if(e.target.id==='m-model'&&landmarker){initModel().catch(()=>{});}});
+
+/* ============================ init ============================ */
+(function init(){
+  $('#c-hbbr').innerHTML=$('#c-hbbl').innerHTML=HBB.map(x=>`<option value="${x}">${x||'—'}</option>`).join('');
+  $('#reflexFields').innerHTML=REFLEXES.map(([k,n])=>`<label class="f">${n}<select id="rx-${k}" data-bind="clinician.reflex.${k}"><option value="na">Not assessed</option><option>0 absent</option><option>1+ reduced</option><option>2+ normal</option><option>3+ brisk</option></select></label>`).join('');
+  if(!window.isSecureContext&&location.protocol!=='file:')$('#secureNote').hidden=false;
+  bindAll();renderRF();curSide=S.patient.affected==='Left'?'Right':'Left';
+  const h=(location.hash||'').slice(1);ensureStage();go(STEPS.some(s=>s[0]===h)?h:'setup');
+  if(pending){renderResult();toast('Restored pending un-saved measurement from session cache.');}
+})();
+</script>
+</body>
+</html>
